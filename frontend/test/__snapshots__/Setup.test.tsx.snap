@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Setup > renders setup screen (snapshot) 1`] = `
+<div>
+  <div
+    class="h-full flex flex-col overflow-y-auto custom-scrollbar bg-[#161618]"
+  >
+    <div
+      class="p-8 lg:p-12 max-w-5xl mx-auto w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500"
+    >
+      <div
+        class="space-y-8 mt-6"
+      >
+        <div
+          class="space-y-8"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+
