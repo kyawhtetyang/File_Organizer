@@ -7,15 +7,18 @@ if str(Path(__file__).parent) not in sys.path:
     sys.path.append(str(Path(__file__).parent))
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import json
 from datetime import datetime
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 from enum import Enum
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
+import time
+from fastapi import Request
 
 # Backend imports
 from src.core.models import Context, FileItem, ActionType
@@ -40,13 +43,48 @@ from src.steps.filename import FilenameStep
 
 app = FastAPI(title="File Organizer Backend API")
 
+# Simple in-memory rate limiting (per IP, fixed window)
+RATE_LIMIT_WINDOW_SEC = 60
+RATE_LIMIT_MAX_REQUESTS = 120
+_rate_limit_state: Dict[str, Tuple[float, int]] = {}
+
 # Enable CORS for frontend development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://files.kyawhtet.com"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _client_ip(request: Request) -> str:
+    # Respect Nginx proxy headers when present
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Skip rate limiting for health checks
+    if request.url.path == "/api/health":
+        return await call_next(request)
+
+    now = time.time()
+    ip = _client_ip(request)
+    window_start, count = _rate_limit_state.get(ip, (now, 0))
+
+    if now - window_start > RATE_LIMIT_WINDOW_SEC:
+        window_start, count = now, 0
+
+    count += 1
+    _rate_limit_state[ip] = (window_start, count)
+
+    if count > RATE_LIMIT_MAX_REQUESTS:
+        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+
+    return await call_next(request)
 
 if USE_POSTGRES:
     undo_manager = UndoManagerPostgres(database_url=DB_URL)
@@ -494,6 +532,10 @@ def get_defaults():
         "downloads": str(home / "Downloads")
     }
 
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
+
 @app.get("/api/debug/undo")
 async def api_debug_undo():
     """Debug endpoint to check undo manager status."""
@@ -593,4 +635,3 @@ async def api_log_client_error(request: ClientErrorLogRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
-
