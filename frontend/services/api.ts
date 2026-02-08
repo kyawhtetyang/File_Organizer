@@ -1,7 +1,8 @@
 
 import { RunStepRequest, RunAllRequest, StepResponse, UndoHistoryEntry } from '../types';
 
-const API_BASE_URL = 'https://api.files.kyawhtet.com/api';
+const API_BASE_URL =
+  (import.meta as any)?.env?.VITE_API_BASE_URL || 'https://api.files.kyawhtet.com/api';
 
 /**
  * Note: In a real environment, you'd handle fetch errors and status codes.
@@ -232,7 +233,6 @@ export const pipelineApi = {
     }
   }
 };
-
 
 
 
