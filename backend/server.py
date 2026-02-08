@@ -21,9 +21,17 @@ import os
 from src.core.models import Context, FileItem, ActionType
 from src.core.pipeline import Pipeline
 from src.core.scanner import Scanner
-from src.core.undo_sqlite import UndoManagerSQLite
-from src.core.preset_overrides_sqlite import PresetOverridesSQLite
-from src.core.custom_presets_sqlite import CustomPresetsSQLite
+DB_URL = os.getenv("DATABASE_URL", "").strip()
+USE_POSTGRES = bool(DB_URL)
+
+if USE_POSTGRES:
+    from src.core.undo_postgres import UndoManagerPostgres
+    from src.core.preset_overrides_postgres import PresetOverridesPostgres
+    from src.core.custom_presets_postgres import CustomPresetsPostgres
+else:
+    from src.core.undo_sqlite import UndoManagerSQLite
+    from src.core.preset_overrides_sqlite import PresetOverridesSQLite
+    from src.core.custom_presets_sqlite import CustomPresetsSQLite
 from src.steps.deduplicate import DeduplicateStep
 from src.steps.group import GroupStep
 from src.steps.transfer import TransferStep
@@ -40,12 +48,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize undo manager with SQLite
-undo_db_path = Path(__file__).parent / "undo_history.db"
-undo_manager = UndoManagerSQLite(db_path=undo_db_path)
-presets_db_path = Path(__file__).parent / "preset_overrides.db"
-preset_overrides = PresetOverridesSQLite(db_path=presets_db_path)
-custom_presets = CustomPresetsSQLite(db_path=presets_db_path)
+if USE_POSTGRES:
+    undo_manager = UndoManagerPostgres(database_url=DB_URL)
+    preset_overrides = PresetOverridesPostgres(database_url=DB_URL)
+    custom_presets = CustomPresetsPostgres(database_url=DB_URL)
+else:
+    # Initialize undo manager with SQLite
+    undo_db_path = Path(__file__).parent / "undo_history.db"
+    undo_manager = UndoManagerSQLite(db_path=undo_db_path)
+    presets_db_path = Path(__file__).parent / "preset_overrides.db"
+    preset_overrides = PresetOverridesSQLite(db_path=presets_db_path)
+    custom_presets = CustomPresetsSQLite(db_path=presets_db_path)
 
 class StepId(str, Enum):
     STANDARDIZE = 'standardize'
@@ -580,5 +593,4 @@ async def api_log_client_error(request: ClientErrorLogRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
-
 
