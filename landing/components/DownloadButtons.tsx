@@ -15,9 +15,8 @@ const DownloadButtons: React.FC<DownloadButtonsProps> = ({ className = "", varia
     <div className={`flex flex-wrap items-center justify-center gap-3 ${className}`}>
       {/* Primary Download */}
       <a
-        href="#download"
+        href="https://github.com/kyawhtetyang/File_Organizer/releases/download/v0.1.0/File.Organizer_0.1.0_aarch64.dmg"
         className={`${baseStyle} ${primaryStyle}`}
-        onClick={(e) => e.preventDefault()}
       >
         <Icons.Download />
         <div className="text-left leading-none">
@@ -28,8 +27,7 @@ const DownloadButtons: React.FC<DownloadButtonsProps> = ({ className = "", varia
 
       {/* Secondary */}
       <a
-        href="#app-store"
-        onClick={(e) => e.preventDefault()}
+        href="https://github.com/kyawhtetyang/File_Organizer/releases/tag/v0.1.0"
         className="text-[12px] font-semibold text-[#1d1d1f]/70 hover:text-[#1d1d1f] transition-colors"
       >
         Get it on the App Store
@@ -39,4 +37,3 @@ const DownloadButtons: React.FC<DownloadButtonsProps> = ({ className = "", varia
 };
 
 export default DownloadButtons;
-

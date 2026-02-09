@@ -19,5 +19,6 @@ venv/
 .cache/
 *.sqlite
 *.db
+*.dmg
 frontend/src-tauri/target/
 frontend/src-tauri/binaries/
