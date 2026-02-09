@@ -1,0 +1,9 @@
+{
+  "name": "File Organizer - AI File Organizer",
+  "description": "A premium landing page for File Organizer, the ultimate AI-powered file organization app. Features smart categorization, cross-device sync, and a live AI assistant demo.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
+

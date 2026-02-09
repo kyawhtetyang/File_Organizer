@@ -17,33 +17,26 @@ Automated pipeline to clean, rename, dedupe, and organize files with presets and
 
 ## Project Structure
 - `frontend/` — UI and client logic
+- `landing/` — public landing page (download the mac app)
 - `backend/` — API and pipeline steps
 - `tests/` — backend tests
 
 ## Quick Start (Local)
 From the repo root:
-```bash
 cd backend
 python server.py
-```
 
-```bash
 cd frontend
 npm install
 npm run dev
-```
 
 ## Tests
 From the repo root:
-```bash
 cd tests
 python unit_test.py
-```
 
-```bash
 cd frontend
 npm run test
-```
 
 ## Deployment Notes
 - Recommended domains:
@@ -53,3 +46,4 @@ npm run test
 
 ## License
 Private — all rights reserved.
+

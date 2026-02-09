@@ -3,6 +3,7 @@ import React from 'react';
 
 export enum StepId {
   SETUP = 'setup',
+  PREVIEW = 'preview',
   SUMMARY = 'summary',
   STANDARDIZE = 'standardize',
   DEDUPLICATE = 'deduplicate',
@@ -95,6 +96,7 @@ export interface PipelineConfig {
   rename: RenameConfig;
   group: GroupConfig;
   transfer: TransferConfig;
+  max_preview_files: number;
 }
 
 export interface RunStepRequest {
@@ -131,6 +133,8 @@ export interface PipelinePreset {
   configUpdates: Partial<PipelineConfig>;
   stepUpdates: Partial<Record<StepId, boolean>>;
 }
+
+
 
 
 

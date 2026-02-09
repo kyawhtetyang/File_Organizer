@@ -1,6 +1,8 @@
 node_modules/
 package-lock.json/
 dist/
+backend/build/
+backend/dist/
 __install/
 .DS_Store
 .env
@@ -17,3 +19,5 @@ venv/
 .cache/
 *.sqlite
 *.db
+frontend/src-tauri/target/
+frontend/src-tauri/binaries/

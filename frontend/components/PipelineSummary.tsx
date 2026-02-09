@@ -47,10 +47,7 @@ export const PipelineSummary: React.FC<PipelineSummaryProps> = ({
         {hasAnalyzedAny ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            {/* Results Header */}
-            <div className="text-center space-y-2">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-[#fa233b]">Final Manifest</h3>
-            </div>
+
 
             {/* Adjust Configuration Button */}
             <div className="flex justify-end">
@@ -151,6 +148,8 @@ export const PipelineSummary: React.FC<PipelineSummaryProps> = ({
     </div>
   );
 };
+
+
 
 
 

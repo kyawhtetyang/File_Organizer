@@ -401,3 +401,5 @@ class UndoManagerPostgres:
             "db_path": "postgres",
             "db_size_bytes": 0,
         }
+
+

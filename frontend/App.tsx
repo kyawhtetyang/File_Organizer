@@ -8,9 +8,11 @@ import { PipelineSummary } from './components/PipelineSummary';
 import { Setup } from './components/Setup';
 import { SettingsModal } from './components/SettingsModal';
 import { pipelineApi } from './services/api';
+import { Preview } from './components/Preview';
 
 const STEP_RULES: Record<StepId, string[]> = {
   [StepId.SETUP]: ["Configure the pipeline settings."],
+  [StepId.PREVIEW]: ["Review content of the source folder."],
   [StepId.SUMMARY]: ["Review the total transformation sequence."],
   [StepId.STANDARDIZE]: [
     "Folder: 1993-07-12 4-52-24AM ➔ 1993-07-12 4-52-24AM_000001.jpg",
@@ -62,7 +64,7 @@ const PRESETS: import('./types').PipelinePreset[] = [
   {
     id: 'pcloud',
     name: 'pCloud',
-    description: 'Clean, chronological naming perfect for cloud storage (pCloud, Google Photos).',
+    description: 'Rename by time + filename, organize by year and month.',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>,
     color: '#0091FF',
     configUpdates: {
@@ -84,10 +86,11 @@ const PRESETS: import('./types').PipelinePreset[] = [
   {
     id: 'google-photos',
     name: 'Google Photos',
-    description: 'Optimization for Google Photos upload (clean names, EXIF priority).',
+    description: 'Organize photos by year and month.',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>,
     color: '#FF9F0A',
     configUpdates: {
+      fileCategory: 'photos',
       prefix: { add_timestamp: false, timeline_mode: 'off' },
       timestamp_format: { preset: 'google_photos', hour_format_12: false },
       rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
@@ -105,62 +108,24 @@ const PRESETS: import('./types').PipelinePreset[] = [
   },
   {
     id: 'minimalist',
-    name: 'Minimalist',
-    description: 'Strictly chronological. Date and numbers only (1993-07-12_001.jpg).',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
-    color: '#FFFFFF',
+    name: 'pCloud Automatic',
+    description: 'Rename by time, organize by year and month.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>,
+    color: '#27c5d6',
     configUpdates: {
       prefix: { add_timestamp: true, timeline_mode: 'timeline_plus' },
-      timestamp_format: { preset: 'pcloud', hour_format_12: false },
+      timestamp_format: { preset: 'pcloud', hour_format_12: true },
       rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
-      extension: { clean_extensions: true, uniform_extensions: true },
-      deduplicate: { faster_process: true }
+      extension: { clean_extensions: true, uniform_extensions: false },
+      deduplicate: { faster_process: true },
+      group: { prioritize_filename: false }
     },
     stepUpdates: {
+      [StepId.STANDARDIZE]: false,
       [StepId.DEDUPLICATE]: true,
       [StepId.FILENAME]: true,
       [StepId.GROUP]: true,
-      [StepId.TRANSFER]: true
-    }
-  },
-  {
-    id: 'developer',
-    name: 'Developer',
-    description: 'Code-safe. Preserves exact filenames to avoid breaking imports.',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>,
-    color: '#30D158',
-    configUpdates: {
-      prefix: { add_timestamp: false, timeline_mode: 'off' },
-      timestamp_format: { preset: 'pcloud', hour_format_12: true },
-      rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
-      extension: { clean_extensions: true, uniform_extensions: false }, // Don't touch extensions
-      deduplicate: { faster_process: true }
-    },
-    stepUpdates: {
-      [StepId.DEDUPLICATE]: true,
-      [StepId.FILENAME]: true,
-      [StepId.GROUP]: false, // Still useful to group by type/date
       [StepId.TRANSFER]: false
-    }
-  },
-  {
-    id: 'detailed-archive',
-    name: 'Detailed Archive',
-    description: 'Maximum preservation. Original name + full timestamp + metadata.',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>,
-    color: '#BF5AF2',
-    configUpdates: {
-      prefix: { add_timestamp: true, timeline_mode: 'timeline_plus' },
-      timestamp_format: { preset: 'pcloud', hour_format_12: true },
-      rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
-      extension: { clean_extensions: true, uniform_extensions: true },
-      deduplicate: { faster_process: false }
-    },
-    stepUpdates: {
-      [StepId.DEDUPLICATE]: true,
-      [StepId.FILENAME]: true,
-      [StepId.GROUP]: true,
-      [StepId.TRANSFER]: true
     }
   }
 ];
@@ -204,6 +169,13 @@ const App: React.FC = () => {
       status: PipelineStatus.IDLE
     },
     {
+      id: StepId.PREVIEW,
+      name: 'Preview',
+      description: 'Review content of the source folder',
+      enabled: true,
+      status: PipelineStatus.IDLE
+    },
+    {
       id: StepId.SUMMARY,
       name: 'Summary',
       description: 'Master overview of the handling sequence',
@@ -217,46 +189,47 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [config, setConfig] = useState<PipelineConfig>(() => {
     const stored = loadStoredConfig();
-    if (stored) return stored;
+    if (stored) return { ...stored, fileCategory: 'all' };
     return {
-    sourceDir: '/Users/kyawhtet/Desktop/#Input',
-    targetDir: '/Users/kyawhtet/Desktop/#Output',
-    isDryRun: true,
-    fileCategory: 'all',
-    timestamp_format: {
-      preset: 'pcloud',
-      hour_format_12: true
-    },
-    standardize: {
-      use_filename_fallback: false
-    },
-    metadata: {
-      start_datetime: "1993-07-12 04-52-24 AM",
-      add_timestamp: true,
-      keep_original_name: false
-    },
-    deduplicate: {
-      faster_process: true
-    },
-    prefix: {
-      add_timestamp: true,
-      timeline_mode: 'timeline_plus'
-    },
-    extension: {
-      clean_extensions: true,
-      uniform_extensions: true
-    },
-    rename: {
-      replace_bodyname: "",
-      append_first_text: "",
-      append_second_text: ""
-    },
-    group: {
-      prioritize_filename: true
-    },
-    transfer: {
-      overwrite: false
-    }
+      sourceDir: '/Users/kyawhtet/Desktop/#Input',
+      targetDir: '/Users/kyawhtet/Desktop/#Output',
+      isDryRun: true,
+      fileCategory: 'all',
+      timestamp_format: {
+        preset: 'pcloud',
+        hour_format_12: true
+      },
+      standardize: {
+        use_filename_fallback: false
+      },
+      metadata: {
+        start_datetime: "1993-07-12 04-52-24 AM",
+        add_timestamp: true,
+        keep_original_name: false
+      },
+      deduplicate: {
+        faster_process: true
+      },
+      prefix: {
+        add_timestamp: true,
+        timeline_mode: 'timeline_plus'
+      },
+      extension: {
+        clean_extensions: true,
+        uniform_extensions: true
+      },
+      rename: {
+        replace_bodyname: "",
+        append_first_text: "",
+        append_second_text: ""
+      },
+      group: {
+        prioritize_filename: true
+      },
+      transfer: {
+        overwrite: false
+      },
+      max_preview_files: 100
     };
   });
   const [showCounts, setShowCounts] = useState(true);
@@ -283,6 +256,54 @@ const App: React.FC = () => {
     timestamp: string;
   } | null>(null);
   const [clientErrorReported, setClientErrorReported] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<{
+    state: 'checking' | 'ok' | 'error';
+    message?: string;
+  }>({ state: 'checking' });
+
+  const checkBackend = useCallback(async () => {
+    setBackendStatus({ state: 'checking' });
+    const res = await pipelineApi.health();
+    if (res.ok) {
+      setBackendStatus({ state: 'ok' });
+    } else {
+      setBackendStatus({ state: 'error', message: res.error || 'Unknown error' });
+    }
+  }, []);
+
+  const checkBackendWithRetries = useCallback(async (attempts: number, delayMs: number) => {
+    for (let i = 0; i < attempts; i++) {
+      const res = await pipelineApi.health();
+      if (res.ok) {
+        setBackendStatus({ state: 'ok' });
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    setBackendStatus({ state: 'error', message: 'Backend did not become ready' });
+    return false;
+  }, []);
+
+  // Start the bundled backend sidecar in the Tauri app
+  React.useEffect(() => {
+    const startBackend = async () => {
+      if (!(window as any)?.__TAURI__) return;
+      try {
+        const { Command } = await import('@tauri-apps/plugin-shell');
+        await Command.sidecar('file-organizer-backend').spawn();
+        await checkBackendWithRetries(10, 500);
+      } catch (e) {
+        const msg = `Failed to start backend sidecar: ${String(e)}`;
+        console.error(msg);
+        setBackendStatus({ state: 'error', message: msg });
+      }
+    };
+    startBackend();
+  }, []);
+
+  React.useEffect(() => {
+    checkBackend();
+  }, [checkBackend]);
 
   // Scan paths when config changes
   React.useEffect(() => {
@@ -419,7 +440,7 @@ const App: React.FC = () => {
     if (!config.sourceDir) return;
 
     // 1. Identify enabled vs disabled steps
-    const stepsToRun = steps.filter(s => s.enabled && s.id !== StepId.SUMMARY && s.id !== StepId.SETUP).map(s => s.id);
+    const stepsToRun = steps.filter(s => s.enabled && s.id !== StepId.SUMMARY && s.id !== StepId.SETUP && s.id !== StepId.PREVIEW).map(s => s.id);
     const stepsToClear = steps.filter(s => !s.enabled && s.id !== StepId.SUMMARY && s.id !== StepId.SETUP).map(s => s.id);
 
     // 2. Clear disabled steps
@@ -592,7 +613,7 @@ const App: React.FC = () => {
       </div>
 
       <nav className="flex-1 overflow-y-auto custom-scrollbar px-6">
-        {/* Section 0: Setup */}
+        {/* Section 0: Setup & Preview */}
         <div>
           <div className="space-y-1">
             {steps
@@ -604,11 +625,6 @@ const App: React.FC = () => {
                   isActive={activeStepId === step.id}
                   onSelect={(id) => { setActiveStepId(id); setIsSidebarOpen(false); }}
                   isDark={true}
-                  rightContent={config.sourceDir ? (
-                    <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white leading-none flex items-center h-5">
-                      {pathCounts.source.count >= 5000 ? '5000+' : pathCounts.source.count}
-                    </span>
-                  ) : undefined}
                 />
               ))}
           </div>
@@ -628,11 +644,16 @@ const App: React.FC = () => {
                     step={step}
                     isActive={activeStepId === step.id}
                     onSelect={(id) => { setActiveStepId(id); setIsSidebarOpen(false); }}
-                    onToggle={handleToggleStep}
+                    onToggle={step.id === StepId.PREVIEW ? undefined : handleToggleStep}
                     isDark={true}
                     isDryRun={config.isDryRun}
-                    count={showCounts ? step.results?.length : undefined}
-                    disabled={activePresetId !== 'none'}
+                    count={step.id === StepId.PREVIEW || showCounts ? step.results?.length : undefined}
+                    disabled={activePresetId !== 'none' && step.id !== StepId.PREVIEW}
+                    rightContent={step.id === StepId.PREVIEW && config.sourceDir ? (
+                      <span className="text-[12px] font-mono font-bold px-2 py-0.5 rounded-lg bg-white/20 text-white leading-none flex items-center h-5">
+                        {pathCounts.source.count >= 5000 ? '5000+' : pathCounts.source.count}
+                      </span>
+                    ) : undefined}
                   />
                   {step.id === StepId.STANDARDIZE && (
                     <div className="h-px bg-white/5 mx-3 my-5" />
@@ -655,7 +676,7 @@ const App: React.FC = () => {
                   isActive={activeStepId === step.id}
                   onSelect={(id) => { setActiveStepId(id); setIsSidebarOpen(false); }}
                   isDark={true}
-                  count={showCounts ? fileStats.all : undefined}
+                  count={fileStats.all}
                 />
               ))}
           </div>
@@ -675,6 +696,20 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 bg-[#161618] inner-shadow">
+        {backendStatus.state === 'error' && (
+          <div className="px-4 lg:px-6 py-3 border-b border-white/5 bg-[#241a1a] text-[#f4c7c7] flex items-center justify-between">
+            <div className="text-[12px] font-mono truncate">
+              <span className="font-bold text-[#fa233b] mr-2">Backend Offline:</span>
+              {backendStatus.message}
+            </div>
+            <button
+              onClick={checkBackend}
+              className="text-[11px] font-bold px-3 py-1 rounded-md bg-[#fa233b] text-white hover:bg-[#fa233b]/90 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {clientError && (
           <div className="px-4 lg:px-6 py-3 border-b border-white/5 bg-[#2a1b1b] text-[#f4c7c7] flex items-center justify-between">
             <div className="text-[12px] font-mono truncate">
@@ -856,6 +891,8 @@ const App: React.FC = () => {
               activePresetId={activePresetId}
               onContinue={() => setActiveStepId(StepId.SUMMARY)}
             />
+          ) : activeStep.id === StepId.PREVIEW ? (
+            <Preview config={config} />
           ) : activeStep.id === StepId.SUMMARY ? (
             <PipelineSummary
               steps={steps}
@@ -949,22 +986,22 @@ const App: React.FC = () => {
                   value: config.extension.uniform_extensions
                 }
               ]) : activeStep.id === StepId.GROUP ? [
-                  {
-                    description: "Year/Month",
-                    label: "Filename First",
-                    example: "1993-07-12_filename.jpg ➔ 1993/07",
-                    key: "prioritize_filename",
-                    value: config.group.prioritize_filename
-                  }
-                ] : activeStep.id === StepId.TRANSFER ? [
-                  {
-                    description: "Transfer",
-                    label: "Overwrite Existing Files",
-                    example: "Keep both (rename new as '_1')",
-                    key: "overwrite",
-                    value: config.transfer.overwrite
-                  }
-                ] : undefined}
+                {
+                  description: "Year/Month",
+                  label: "Filename First",
+                  example: "1993-07-12_filename.jpg ➔ 1993/07",
+                  key: "prioritize_filename",
+                  value: config.group.prioritize_filename
+                }
+              ] : activeStep.id === StepId.TRANSFER ? [
+                {
+                  description: "Transfer",
+                  label: "Overwrite Existing Files",
+                  example: "Keep both (rename new as '_1')",
+                  key: "overwrite",
+                  value: config.transfer.overwrite
+                }
+              ] : undefined}
               onSettingToggle={(key) => {
                 if (activeStep.id === StepId.STANDARDIZE) {
                   setConfig(prev => ({
@@ -1077,4 +1114,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

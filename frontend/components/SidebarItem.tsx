@@ -92,8 +92,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           </span>
         ) : null}
 
-        {/* Custom iOS Toggle Switch (Only for non-summary steps & when no custom content) */}
-        {!isSummary && !rightContent && step && (
+        {/* Custom iOS Toggle Switch (Only for non-summary steps & when no custom content & handler exists) */}
+        {!isSummary && !rightContent && step && onToggle && (
           <div
             className={`flex items-center justify-center pl-2 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
             onClick={handleToggle}
@@ -113,6 +113,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
     </div>
   );
 };
+
+
 
 
 

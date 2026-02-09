@@ -1,8 +1,30 @@
 # server.py
 import sys
+import os
+import traceback
 from pathlib import Path
 
-# Add src to sys.path if needed, or rely on CWD
+# -----------------------------------------------------------------------------
+# STARTUP LOGGING (Moved to top to capture import errors)
+# -----------------------------------------------------------------------------
+if getattr(sys, 'frozen', False):
+    # Packaged app: Use Application Support
+    # We must ensure this directory exists before anything else
+    try:
+        app_data_dir = Path.home() / "Library" / "Application Support" / "com.fileorganizerpro.app"
+        log_dir = app_data_dir / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Redirect stderr/stdout to files immediately
+        sys.stderr = open(log_dir / "startup_error.log", "a", buffering=1)
+        sys.stdout = open(log_dir / "startup_out.log", "a", buffering=1)
+        
+        print(f"Server starting at {Path(__file__)}", flush=True)
+    except Exception as e:
+        # If we can't even write logs, we're in trouble, but try to print to console just in case
+        print(f"Failed to setup logging: {e}")
+
+# Add src to sys.path if needed
 if str(Path(__file__).parent) not in sys.path:
     sys.path.append(str(Path(__file__).parent))
 
@@ -51,7 +73,13 @@ _rate_limit_state: Dict[str, Tuple[float, int]] = {}
 # Enable CORS for frontend development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://files.kyawhtet.com"],
+    allow_origins=[
+        "https://files.kyawhtet.com",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "tauri://localhost",
+        "http://tauri.localhost"
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -92,9 +120,18 @@ if USE_POSTGRES:
     custom_presets = CustomPresetsPostgres(database_url=DB_URL)
 else:
     # Initialize undo manager with SQLite
-    undo_db_path = Path(__file__).parent / "undo_history.db"
+    if getattr(sys, 'frozen', False):
+        # Packaged app: Use Application Support
+        app_data_dir = Path.home() / "Library" / "Application Support" / "com.fileorganizerpro.app"
+        app_data_dir.mkdir(parents=True, exist_ok=True)
+        undo_db_path = app_data_dir / "undo_history.db"
+        presets_db_path = app_data_dir / "preset_overrides.db"
+    else:
+        # Dev mode: Use local directory
+        undo_db_path = Path(__file__).parent / "undo_history.db"
+        presets_db_path = Path(__file__).parent / "preset_overrides.db"
+
     undo_manager = UndoManagerSQLite(db_path=undo_db_path)
-    presets_db_path = Path(__file__).parent / "preset_overrides.db"
     preset_overrides = PresetOverridesSQLite(db_path=presets_db_path)
     custom_presets = CustomPresetsSQLite(db_path=presets_db_path)
 
@@ -607,6 +644,32 @@ async def api_delete_custom_preset(preset_id: int):
     custom_presets.delete(preset_id)
     return {"success": True}
 
+class ListFilesRequest(BaseModel):
+    path: str
+    category: str = 'all'
+
+@app.post("/api/list-files")
+async def api_list_files(request: ListFilesRequest):
+    try:
+        if not os.path.exists(request.path):
+            return {"success": False, "files": [], "error": "Path does not exist"}
+
+        # Use Scanner.scan to get FileItems
+        items = Scanner.scan(Path(request.path), request.category)
+
+        # Return list of dicts with name and size
+        file_list = []
+        for item in items:
+            try:
+                size = item.original_path.stat().st_size
+            except OSError:
+                size = 0
+            file_list.append({"name": item.original_path.name, "size": size})
+
+        return {"success": True, "files": file_list}
+    except Exception as e:
+        return {"success": False, "files": [], "error": str(e)}
+
 @app.post("/api/log-client-error")
 async def api_log_client_error(request: ClientErrorLogRequest):
     try:
@@ -634,4 +697,35 @@ async def api_log_client_error(request: ClientErrorLogRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    import socket
+    import sys
+    import traceback
+
+    # Startup logging moved to top of file
+
+
+    PORT = 8000
+    try:
+        # Check if port is available before full startup to give a clean error
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex(('127.0.0.1', PORT))
+        if result == 0:
+            print(f"❌ Error: Port {PORT} is already in use!")
+            print(f"   Please kill the existing process (e.g., 'lsof -i :{PORT}' then 'kill -9 <PID>')")
+            print("   or choose a different port.")
+            # In production/frozen, we might want to try another port or fail loudly
+            # For now, let's fail but log it
+            sys.exit(1)
+        sock.close()
+
+        # Bind to IPv6 localhost so "localhost" resolves correctly in the WebView
+        uvicorn.run(app, host="::", port=PORT, workers=1)
+    except Exception as e:
+        print(f"Critical Startup Error: {e}")
+        traceback.print_exc()
+        if getattr(sys, 'frozen', False):
+             # Ensure it's flushed to disk
+             sys.stderr.flush()
+             sys.stdout.flush()
+        sys.exit(1)
+

@@ -60,3 +60,5 @@ class CustomPresetsPostgres:
         with self._connect() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("DELETE FROM custom_presets WHERE id = %s", (preset_id,))
+
+

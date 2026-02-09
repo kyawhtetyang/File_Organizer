@@ -2,13 +2,22 @@
 import { RunStepRequest, RunAllRequest, StepResponse, UndoHistoryEntry } from '../types';
 
 const API_BASE_URL =
-  (import.meta as any)?.env?.VITE_API_BASE_URL || 'https://api.files.kyawhtet.com/api';
+  (import.meta as any)?.env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 /**
  * Note: In a real environment, you'd handle fetch errors and status codes.
  * This mock implementation mimics the backend response for UI development.
  */
 export const pipelineApi = {
+  async health(): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/health`);
+      if (!response.ok) throw new Error(`Backend failed (${response.status})`);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  },
   async runStep(request: RunStepRequest): Promise<StepResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/run-step`, {
@@ -52,6 +61,23 @@ export const pipelineApi = {
     } catch (e) {
       console.error("API Error:", e);
       return null;
+    }
+  },
+
+  async listFiles(
+    path: string,
+    category: string = 'all'
+  ): Promise<{ success: boolean; files: Array<{ name: string; size: number }>; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/list-files`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, category }),
+      });
+      if (!response.ok) throw new Error('Backend failed');
+      return await response.json();
+    } catch (e: any) {
+      return { success: false, files: [], error: String(e) };
     }
   },
 
@@ -233,8 +259,6 @@ export const pipelineApi = {
     }
   }
 };
-
-
 
 
 

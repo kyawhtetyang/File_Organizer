@@ -132,7 +132,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <div className="text-[13px] font-medium text-white mb-1">Sidebar File Counts</div>
-                                            <div className="text-[11px] text-[#86868b]">Show number of files processed in sidebar.</div>
+                                            <div className="text-[11px] text-[#86868b]">Show number of files processed in sidebar (except Preview & Summary).</div>
                                         </div>
                                         <div
                                             onClick={() => setShowCounts(!showCounts)}
@@ -160,6 +160,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         <button className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-white text-[12px] font-bold rounded-lg border border-white/5 transition-colors">
                                             Clear Cache
                                         </button>
+                                    </div>
+                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                        <div>
+                                            <div className="text-[13px] font-medium text-white mb-1">Max Preview Files</div>
+                                            <div className="text-[11px] text-[#86868b]">Rows to display in preview table.</div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={config.max_preview_files || 100}
+                                            onChange={(e) => setConfig(prev => ({ ...prev, max_preview_files: parseInt(e.target.value) || 100 }))}
+                                            className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-right text-white text-sm focus:outline-none focus:border-[#fa233b]"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -303,11 +315,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                                     }
                                                                 }}
                                                                 disabled={!isLatest}
-                                                                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-colors ${
-                                                                    isLatest
-                                                                        ? 'text-[#fa233b] border-[#fa233b]/40 bg-[#fa233b]/10 hover:bg-[#fa233b]/20'
-                                                                        : 'text-[#86868b] border-white/10 bg-white/5 cursor-not-allowed'
-                                                                }`}
+                                                                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-colors ${isLatest
+                                                                    ? 'text-[#fa233b] border-[#fa233b]/40 bg-[#fa233b]/10 hover:bg-[#fa233b]/20'
+                                                                    : 'text-[#86868b] border-white/10 bg-white/5 cursor-not-allowed'
+                                                                    }`}
                                                             >
                                                                 Undo
                                                             </button>
@@ -372,6 +383,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
     );
 };
+
+
 
 
 

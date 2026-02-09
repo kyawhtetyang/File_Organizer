@@ -14,12 +14,12 @@ interface ResultsTableProps {
   isProcessing?: boolean;
   status?: string; // Add status prop
   hasConfig?: boolean;
-  isEnabled?: boolean;
   locked?: boolean;
   customHeader?: React.ReactNode;
+  config?: any; // Add config prop to access global settings
 }
 
-export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules = [], settings, onSettingToggle, onSettingChange, onRun, onReset, isProcessing, status, hasConfig, isEnabled = true, locked = false, customHeader }) => {
+export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules = [], settings, onSettingToggle, onSettingChange, onRun, onReset, isProcessing, status, hasConfig, isEnabled = true, locked = false, customHeader, config }) => {
   // Show settings ONLY if status is IDLE (or undefined/initial) AND not processing
   // If status is SUCCESS but files is empty, we should show "No files found" message, NOT settings.
   const showSettings = (status === 'idle' || !status) && !isProcessing;
@@ -146,12 +146,12 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules
 
                     return (
                       <tr key={i} className="group transition-colors hover:bg-white/5">
-                      <td className="px-6 py-2.5 text-[12px] font-mono text-white/80 truncate max-w-[260px]" title={hasArrow ? parts[0].trim() : rule}>
-                        {hasArrow ? parts[0].trim() : rule}
-                      </td>
-                      <td className="px-6 py-2.5 text-[12px] font-mono text-white/80 truncate max-w-[280px]" title={hasArrow ? parts[1].trim() : ''}>
-                        {hasArrow ? (
-                          <span>{parts[1].trim()}</span>
+                        <td className="px-6 py-2.5 text-[12px] font-mono text-white/80 truncate max-w-[260px]" title={hasArrow ? parts[0].trim() : rule}>
+                          {hasArrow ? parts[0].trim() : rule}
+                        </td>
+                        <td className="px-6 py-2.5 text-[12px] font-mono text-white/80 truncate max-w-[280px]" title={hasArrow ? parts[1].trim() : ''}>
+                          {hasArrow ? (
+                            <span>{parts[1].trim()}</span>
                           ) : (
                             <span className="text-white/20 italic">--</span>
                           )}
@@ -225,7 +225,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {files.slice(0, 50).map((file, idx) => (
+                {files.slice(0, config?.max_preview_files || 50).map((file, idx) => (
                   <tr key={idx} className="group hover:bg-white/[0.02] transition-colors row-animate" style={{ animationDelay: `${idx * 40}ms` }}>
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-3">
@@ -266,9 +266,9 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules
 
         {/* Footer Info */}
         <div className="text-center mt-6">
-          {files.length > 50 && (
+          {files.length > (config?.max_preview_files || 50) && (
             <p className="text-[11px] text-[#8e8e93] font-medium bg-white/5 inline-block px-4 py-1.5 rounded-full border border-white/5">
-              Showing first 50 of {files.length} items
+              Showing first {config?.max_preview_files || 50} of {files.length} items
             </p>
           )}
         </div>
@@ -276,5 +276,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules
     </div>
   );
 };
+
+
 
 

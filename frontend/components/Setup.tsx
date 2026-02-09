@@ -19,7 +19,7 @@ export const Setup: React.FC<SetupProps> = ({
     activePresetId,
     onContinue
 }) => {
-    const [activeCategory, setActiveCategory] = useState<'Featured' | 'Lifestyle' | 'Productivity'>('Featured');
+    const [activeCategory, setActiveCategory] = useState<'Pathway' | 'Preset Store'>('Pathway');
     const [quickAssign, setQuickAssign] = useState<'source' | 'target' | null>(null);
     const [isPairModalOpen, setIsPairModalOpen] = useState(false);
     const [pairDraft, setPairDraft] = useState<{ source: string; target: string }>({ source: '', target: '' });
@@ -39,12 +39,23 @@ export const Setup: React.FC<SetupProps> = ({
         return { source: sourceDir, target: targetDir };
     };
 
-    const applyQuickPair = (sourceDir: string, targetDir: string, key?: string) => {
+    const applyQuickPair = async (sourceDir: string, targetDir: string, key?: string) => {
         if (key) {
             const resolved = resolvePair(key, sourceDir, targetDir);
             sourceDir = resolved.source;
             targetDir = resolved.target;
         }
+
+        // Auto-create directories if they don't exist
+        // This ensures the scanner finds them immediately after config update
+        // ONLY applies to the "Default" button
+        if (key === 'default') {
+            await Promise.all([
+                pipelineApi.createPath(sourceDir),
+                pipelineApi.createPath(targetDir)
+            ]);
+        }
+
         if (quickAssign === 'source') {
             setConfig(prev => ({ ...prev, sourceDir }));
         } else if (quickAssign === 'target') {
@@ -128,9 +139,8 @@ export const Setup: React.FC<SetupProps> = ({
     // Helper to get presets for current category
     const getCategoryPresets = () => {
         switch (activeCategory) {
-            case 'Featured': return [];
-            case 'Lifestyle': return ['google-photos', 'minimalist', 'pcloud'];
-            case 'Productivity': return ['developer', 'detailed-archive'];
+            case 'Pathway': return [];
+            case 'Preset Store': return ['google-photos', 'minimalist', 'pcloud'];
             default: return [];
         }
     };
@@ -150,7 +160,7 @@ export const Setup: React.FC<SetupProps> = ({
 
                                 {/* Category Tabs - One Row Selection */}
                                 <div className="flex items-center space-x-2 pb-2">
-                                    {['Featured', 'Lifestyle', 'Productivity'].map((cat) => (
+                                    {['Pathway', 'Preset Store'].map((cat) => (
                                         <button
                                             key={cat}
                                             onClick={() => setActiveCategory(cat as any)}
@@ -167,159 +177,8 @@ export const Setup: React.FC<SetupProps> = ({
                                 {/* Filtered Grid */}
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
-                                        {/* Insert Directory Cards in 'Featured' Tab */}
-                                        {activeCategory === 'Featured' && (
-                                            <>
-                                                {/* Source Directory Tile */}
-                                                <button
-                                                    onClick={async () => {
-                                                        if ((window as any).electronAPI) {
-                                                            const selected = await (window as any).electronAPI.selectFolder();
-                                                            if (selected) setConfig(prev => ({ ...prev, sourceDir: selected }));
-                                                        } else {
-                                                            let newPath = window.prompt("Enter Full Source Path:", config.sourceDir);
-                                                            if (newPath) {
-                                                                setConfig(prev => ({ ...prev, sourceDir: newPath.trim() }));
-                                                            }
-                                                        }
-                                                    }}
-                                                    className={`group relative flex items-start text-left p-4 rounded-[20px] bg-[#1c1c1e] border ${sourceStatus.exists === false ? 'border-[#fa233b]/60' : 'border-white/5 hover:border-white/10'} active:scale-[0.98] transition-all duration-200`}
-                                                >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setQuickAssign(prev => prev === 'source' ? null : 'source');
-                                                        }}
-                                                        className={`absolute top-4 right-4 w-5 h-5 rounded-full flex items-center justify-center shadow-lg ${quickAssign === 'source'
-                                                            ? 'bg-white text-black'
-                                                            : 'border-2 border-white/10 text-white/40'
-                                                            }`}
-                                                        title="Assign quick presets to Source only"
-                                                    >
-                                                        {quickAssign === 'source' ? (
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                                                        ) : null}
-                                                    </button>
-                                                    <div className={`flex-shrink-0 w-12 h-12 rounded-[12px] flex items-center justify-center shadow-lg mr-4 ${config.sourceDir ? 'bg-[#FF453A] text-white' : 'bg-[#2c2c2e] text-[#8e8e93] group-hover:text-white'}`}>
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <h4 className="text-[14px] font-bold text-white">Source</h4>
-                                                        </div>
-                                                        <p className="text-[11px] text-[#8e8e93] line-clamp-1 break-all font-mono leading-relaxed">
-                                                            {config.sourceDir || "Select Input Folder..."}
-                                                        </p>
-                                                        {sourceStatus.exists === false && (
-                                                            <div className="mt-2 text-[10px] text-[#ff4d5e] font-semibold flex items-center justify-between">
-                                                                <span>Path not found</span>
-                                                                <div className="flex items-center space-x-2">
-                                                                    <button
-                                                                        onClick={async (e) => {
-                                                                            e.stopPropagation();
-                                                                            const res = await pipelineApi.createPath(config.sourceDir);
-                                                                            if (res.success) {
-                                                                                const check = await pipelineApi.scanPath(config.sourceDir, 1);
-                                                                                setSourceStatus({ exists: check.exists, error: check.error });
-                                                                            }
-                                                                        }}
-                                                                        className="px-2 py-0.5 rounded bg-[#fa233b]/20 text-[#fa233b] hover:bg-[#fa233b]/30"
-                                                                    >
-                                                                        Create
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setConfig(prev => ({ ...prev, sourceDir: defaultPair.source }));
-                                                                        }}
-                                                                        className="px-2 py-0.5 rounded bg-white/10 text-white/70 hover:bg-white/20"
-                                                                    >
-                                                                        Reset
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </button>
-
-                                                {/* Target Directory Tile */}
-                                                <button
-                                                    onClick={async () => {
-                                                        if ((window as any).electronAPI) {
-                                                            const selected = await (window as any).electronAPI.selectFolder();
-                                                            if (selected) setConfig(prev => ({ ...prev, targetDir: selected }));
-                                                        } else {
-                                                            let newPath = window.prompt("Enter Full Destination Path:", config.targetDir);
-                                                            if (newPath) {
-                                                                setConfig(prev => ({ ...prev, targetDir: newPath.trim() }));
-                                                            }
-                                                        }
-                                                    }}
-                                                    className={`group relative flex items-start text-left p-4 rounded-[20px] bg-[#1c1c1e] border ${targetStatus.exists === false ? 'border-[#fa233b]/60' : 'border-white/5 hover:border-white/10'} active:scale-[0.98] transition-all duration-200`}
-                                                >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setQuickAssign(prev => prev === 'target' ? null : 'target');
-                                                        }}
-                                                        className={`absolute top-4 right-4 w-5 h-5 rounded-full flex items-center justify-center shadow-lg ${quickAssign === 'target'
-                                                            ? 'bg-white text-black'
-                                                            : 'border-2 border-white/10 text-white/40'
-                                                            }`}
-                                                        title="Assign quick presets to Target only"
-                                                    >
-                                                        {quickAssign === 'target' ? (
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                                                        ) : null}
-                                                    </button>
-                                                    <div className={`flex-shrink-0 w-12 h-12 rounded-[12px] flex items-center justify-center shadow-lg mr-4 ${config.targetDir ? 'bg-[#FF453A] text-white' : 'bg-[#2c2c2e] text-[#8e8e93] group-hover:text-white'}`}>
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <h4 className="text-[14px] font-bold text-white">Target</h4>
-                                                        </div>
-                                                        <p className="text-[11px] text-[#8e8e93] line-clamp-1 break-all font-mono leading-relaxed">
-                                                            {config.targetDir || "Select Output Folder..."}
-                                                        </p>
-                                                        {targetStatus.exists === false && (
-                                                            <div className="mt-2 text-[10px] text-[#ff4d5e] font-semibold flex items-center justify-between">
-                                                                <span>Path not found</span>
-                                                                <div className="flex items-center space-x-2">
-                                                                    <button
-                                                                        onClick={async (e) => {
-                                                                            e.stopPropagation();
-                                                                            const res = await pipelineApi.createPath(config.targetDir);
-                                                                            if (res.success) {
-                                                                                const check = await pipelineApi.scanPath(config.targetDir, 1);
-                                                                                setTargetStatus({ exists: check.exists, error: check.error });
-                                                                            }
-                                                                        }}
-                                                                        className="px-2 py-0.5 rounded bg-[#fa233b]/20 text-[#fa233b] hover:bg-[#fa233b]/30"
-                                                                    >
-                                                                        Create
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setConfig(prev => ({ ...prev, targetDir: defaultPair.target }));
-                                                                        }}
-                                                                        className="px-2 py-0.5 rounded bg-white/10 text-white/70 hover:bg-white/20"
-                                                                    >
-                                                                        Reset
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            </>
-
-                                        )}
-
-
                                         {/* Quick Pair Buttons (Demo) */}
-                                        {activeCategory === 'Featured' && (
+                                        {activeCategory === 'Pathway' && (
                                             <>
                                                 <button
                                                     onClick={() => applyQuickPair('/Users/kyawhtet/Desktop/#Input', '/Users/kyawhtet/Desktop/#Output', 'default')}
@@ -373,7 +232,7 @@ export const Setup: React.FC<SetupProps> = ({
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center justify-between mb-1">
-                                                            <h4 className="text-[14px] font-bold text-white">Clean Desktop</h4>
+                                                            <h4 className="text-[14px] font-bold text-white">Desktop</h4>
                                                         </div>
                                                         <p className="text-[11px] text-[#8e8e93] line-clamp-1 leading-relaxed">
                                                             Desktop → Pictures
@@ -403,43 +262,10 @@ export const Setup: React.FC<SetupProps> = ({
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center justify-between mb-1">
-                                                            <h4 className="text-[14px] font-bold text-white">Sort Downloads</h4>
+                                                            <h4 className="text-[14px] font-bold text-white">Download</h4>
                                                         </div>
                                                         <p className="text-[11px] text-[#8e8e93] line-clamp-1 leading-relaxed">
                                                             Downloads → Pictures
-                                                        </p>
-                                                    </div>
-                                                </button>
-
-                                                <button
-                                                    onClick={() => applyQuickPair('/Users/kyawhtet/Documents', '/Users/kyawhtet/Documents/Sorted', 'documents')}
-                                                    onDoubleClick={() => openPairModal('/Users/kyawhtet/Documents', '/Users/kyawhtet/Documents/Sorted', 'documents')}
-                                                    className="group relative flex items-start text-left p-4 rounded-[20px] bg-[#1c1c1e] border border-white/5 hover:border-white/10 active:scale-[0.98] transition-all duration-200"
-                                                >
-                                                    <div className="absolute top-4 right-4">
-                                                        {(() => {
-                                                            const resolved = resolvePair('documents', '/Users/kyawhtet/Documents', '/Users/kyawhtet/Documents/Sorted');
-                                                            return isPairActive(resolved.source, resolved.target);
-                                                        })() ? (
-                                                            <div className="w-5 h-5 rounded-full bg-white text-black flex items-center justify-center shadow-lg">
-                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="w-5 h-5 rounded-full border-2 border-white/10" />
-                                                        )}
-                                                    </div>
-                                                    <div className={`flex-shrink-0 w-12 h-12 rounded-[12px] flex items-center justify-center shadow-lg mr-4 bg-[#0A84FF] text-white`}>
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7h4l2-2h6l2 2h4v11a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path>
-                                                            <circle cx="12" cy="13" r="3.5" strokeWidth="2"></circle>
-                                                        </svg>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <h4 className="text-[14px] font-bold text-white">Group Photos</h4>
-                                                        </div>
-                                                        <p className="text-[11px] text-[#8e8e93] line-clamp-1 leading-relaxed">
-                                                            Documents → Sorted
                                                         </p>
                                                     </div>
                                                 </button>
