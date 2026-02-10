@@ -3,9 +3,10 @@
 Automated pipeline to clean, rename, dedupe, and organize files with presets and undo support.
 
 ## Screenshots
-![Loading Data](docs/1.%20Loading_Data.jpg)
-![Preview Screenshot](docs/2.%20Preview_Screenshot.jpg)
-![Summary](docs/3.%20Summary.jpg)
+![Setup Page](docs/1.%20Setup%20Page.png)
+![Preview Page](docs/2.%20Preview%20Page.png)
+![Summary Ready](docs/3.%20Summary_Ready.png)
+![Summary Execute](docs/4.%20Summary_Execute.png)
 
 ## Features
 - Multi‑step pipeline: Standardize → Deduplicate → Filename → Group → Transfer
