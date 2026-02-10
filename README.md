@@ -2,6 +2,11 @@
 
 Automated pipeline to clean, rename, dedupe, and organize files with presets and undo support.
 
+## Screenshots
+![Loading Data](docs/1.%20Loading_Data.jpg)
+![Preview Screenshot](docs/2.%20Preview_Screenshot.jpg)
+![Summary](docs/3.%20Summary.jpg)
+
 ## Features
 - Multi‑step pipeline: Standardize → Deduplicate → Filename → Group → Transfer
 - Presets for common workflows
@@ -46,4 +51,3 @@ npm run test
 
 ## License
 Private — all rights reserved.
-
