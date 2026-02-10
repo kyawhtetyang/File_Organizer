@@ -6,6 +6,7 @@ Automated pipeline to clean, rename, dedupe, and organize files with presets and
 ![Landing Page](docs/1.%20Landing%20Page.png)
 ![Setup Page](docs/2.%20Setup%20Page.png)
 ![Preview Page](docs/3.%20Preview%20Page.png)
+![Summary Page](docs/4.%20Summary%20Page.png)
 
 ## Features
 - Multi‑step pipeline: Standardize → Deduplicate → Filename → Group → Transfer
