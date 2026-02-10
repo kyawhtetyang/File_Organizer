@@ -30,7 +30,7 @@ const DownloadButtons: React.FC<DownloadButtonsProps> = ({ className = "", varia
         href="https://github.com/kyawhtetyang/File_Organizer/releases/tag/v0.1.0"
         className="text-[12px] font-semibold text-[#1d1d1f]/70 hover:text-[#1d1d1f] transition-colors"
       >
-        Get it on the App Store
+        Get it on the GitHub
       </a>
     </div>
   );

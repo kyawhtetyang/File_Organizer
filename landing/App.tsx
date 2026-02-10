@@ -59,7 +59,7 @@ const App: React.FC = () => {
         <div className="mx-auto max-w-[1300px] px-8 md:px-16 lg:px-24 py-4 lg:py-5 flex flex-col md:flex-row items-center justify-between text-[11px] font-semibold tracking-tight text-[#a6a6ab]">
           <a className="hover:text-[#6b6b70] transition-colors" href="#support">Support</a>
           <div className="opacity-70 cursor-default uppercase tracking-widest mt-2 md:mt-0">
-            &copy; 2024 File Organizer Inc.
+            &copy; 2026 File Organizer Inc.
           </div>
         </div>
       </footer>
@@ -78,4 +78,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
