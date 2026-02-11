@@ -42,3 +42,4 @@ app = BUNDLE(
     icon=None,
     bundle_identifier=None,
 )
+

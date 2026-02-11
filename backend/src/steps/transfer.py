@@ -1,11 +1,14 @@
 from typing import List
 from pathlib import Path
-import shutil
 import os
 from ..core.step import Step
 from ..core.models import Context, FileItem
 
 class TransferStep(Step):
+    JUNK_FILES = {".DS_Store", "Thumbs.db", "desktop.ini"}
+    JUNK_DIRS = {".Spotlight-V100", ".Trashes"}
+    PROTECTED_HIDDEN = {".git"}
+
     def get_name(self) -> str:
         return "Step 6: Transfer Grouped Folders (Robust & International)"
 
@@ -65,17 +68,59 @@ class TransferStep(Step):
         if not context.source_root.exists():
             return
 
-        # Walk bottom-up to remove nested empty folders
+        cleanup_hidden_files = False
+        if hasattr(context, 'config') and context.config and hasattr(context.config, 'transfer'):
+            cleanup_hidden_files = getattr(context.config.transfer, 'cleanup_hidden_files', False)
+
+        # Walk bottom-up to remove nested empty folders and parent folders.
         for dirpath, dirnames, filenames in os.walk(context.source_root, topdown=False):
+            current_dir = Path(dirpath)
+
+            # Only remove hidden/system artifacts in explicit cleanup mode.
+            if cleanup_hidden_files:
+                for filename in filenames:
+                    is_junk_file = filename in self.JUNK_FILES or filename.startswith("._")
+                    is_hidden_file = filename.startswith(".") and filename not in self.PROTECTED_HIDDEN
+                    if is_junk_file or is_hidden_file:
+                        try:
+                            (current_dir / filename).unlink()
+                        except Exception:
+                            pass
+
             for dirname in dirnames:
-                full_path = Path(dirpath) / dirname
+                full_path = current_dir / dirname
                 try:
-                    if not any(full_path.iterdir()):
+                    if not self._has_non_ignorable_entries(full_path, cleanup_hidden_files):
                         full_path.rmdir()
                 except Exception:
                     pass
 
+            # Also remove this directory itself if now empty (but never remove source root).
+            if current_dir != context.source_root:
+                try:
+                    if not self._has_non_ignorable_entries(current_dir, cleanup_hidden_files):
+                        current_dir.rmdir()
+                except Exception:
+                    pass
 
+    def _is_ignorable_entry(self, name: str, is_dir: bool, cleanup_hidden_files: bool) -> bool:
+        if cleanup_hidden_files:
+            if is_dir and name in self.JUNK_DIRS:
+                return True
+            if not is_dir and (name in self.JUNK_FILES or name.startswith("._")):
+                return True
+            if name.startswith(".") and name not in self.PROTECTED_HIDDEN:
+                return True
+        return False
+
+    def _has_non_ignorable_entries(self, directory: Path, cleanup_hidden_files: bool) -> bool:
+        try:
+            for entry in directory.iterdir():
+                if not self._is_ignorable_entry(entry.name, entry.is_dir(), cleanup_hidden_files):
+                    return True
+            return False
+        except Exception:
+            return True
 
 
 

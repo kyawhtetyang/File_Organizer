@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { INITIAL_STEPS } from './constants';
-import { StepId, PipelineStep, PipelineStatus, PipelineConfig, FileCategory } from './types';
+import { StepId, PipelineStep, PipelineStatus, PipelineConfig, FileCategory, PipelinePreset } from './types';
 import { ResultsTable } from './components/ResultsTable';
 import { SidebarItem } from './components/SidebarItem';
 import { PipelineSummary } from './components/PipelineSummary';
@@ -138,9 +138,16 @@ const EXTENSIONS: Record<string, string[]> = {
   code: ['.py', '.ts', '.tsx', '.js', '.jsx', '.html', '.css', '.json', '.yaml', '.yml', '.sh', '.sql', '.c', '.cpp', '.h', '.java', '.go', '.rs', '.php']
 };
 
+type SavedLogicPresetData = {
+  configUpdates: Partial<PipelineConfig>;
+  stepUpdates: Partial<Record<StepId, boolean>>;
+  description: string;
+};
+
 const App: React.FC = () => {
   const STORAGE_CONFIG_KEY = 'file_organizer_config_v1';
   const STORAGE_PRESET_KEY = 'file_organizer_preset_v1';
+  const STORAGE_SAVED_LOGIC_KEY = 'file_organizer_saved_logic_v1';
 
   const loadStoredConfig = (): PipelineConfig | null => {
     try {
@@ -155,6 +162,16 @@ const App: React.FC = () => {
   const loadStoredPreset = (): string | null => {
     try {
       return localStorage.getItem(STORAGE_PRESET_KEY);
+    } catch {
+      return null;
+    }
+  };
+
+  const loadSavedLogicPreset = (): SavedLogicPresetData | null => {
+    try {
+      const raw = localStorage.getItem(STORAGE_SAVED_LOGIC_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as SavedLogicPresetData;
     } catch {
       return null;
     }
@@ -184,15 +201,28 @@ const App: React.FC = () => {
     },
     ...INITIAL_STEPS
   ]);
-  const [activeStepId, setActiveStepId] = useState<StepId>(INITIAL_STEPS[0].id);
-  const [activePresetId, setActivePresetId] = useState<string>(() => loadStoredPreset() || 'none'); // Track active preset
+  const [activeStepId, setActiveStepId] = useState<StepId>(StepId.SETUP);
+  const [activePresetId, setActivePresetId] = useState<string>(() => loadStoredPreset() || 'none');
+  const [selectedSetupCardId, setSelectedSetupCardId] = useState<string>(() => {
+    const storedPreset = loadStoredPreset();
+    return storedPreset && storedPreset !== 'none' ? storedPreset : 'pathway_default';
+  });
+  const [savedLogicPresetData, setSavedLogicPresetData] = useState<SavedLogicPresetData | null>(() => loadSavedLogicPreset());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [config, setConfig] = useState<PipelineConfig>(() => {
     const stored = loadStoredConfig();
-    if (stored) return { ...stored, fileCategory: 'all' };
+    if (stored) {
+      return {
+        ...stored,
+        sourceDir: stored.sourceDir || '',
+        targetDir: stored.targetDir || '',
+        fileCategory: stored.fileCategory || 'all',
+        processing_file_limit: stored.processing_file_limit && stored.processing_file_limit > 0 ? stored.processing_file_limit : 500,
+      };
+    }
     return {
-      sourceDir: '/Users/kyawhtet/Desktop/#Input',
-      targetDir: '/Users/kyawhtet/Desktop/#Output',
+      sourceDir: '',
+      targetDir: '',
       isDryRun: true,
       fileCategory: 'all',
       timestamp_format: {
@@ -229,6 +259,7 @@ const App: React.FC = () => {
       transfer: {
         overwrite: false
       },
+      processing_file_limit: 500,
       max_preview_files: 100
     };
   });
@@ -240,6 +271,7 @@ const App: React.FC = () => {
     source: { count: 0, exists: true },
     target: { count: 0, exists: true }
   });
+  const [scanRefreshKey, setScanRefreshKey] = useState(0);
   const scanCacheRef = React.useRef<Map<string, { count: number; exists: boolean; timestamp: number }>>(new Map());
   const scanControllersRef = React.useRef<{
     sourceFast?: AbortController;
@@ -284,6 +316,24 @@ const App: React.FC = () => {
     return false;
   }, []);
 
+  const forceRefreshPathCounts = useCallback(async () => {
+    const updates: Partial<typeof pathCounts> = {};
+
+    if (config.sourceDir) {
+      const sourceRes = await pipelineApi.scanPath(config.sourceDir, config.fileCategory);
+      updates.source = { count: sourceRes.count, exists: sourceRes.exists };
+    }
+
+    if (config.targetDir) {
+      const targetRes = await pipelineApi.scanPath(config.targetDir, 'all');
+      updates.target = { count: targetRes.count, exists: targetRes.exists };
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setPathCounts(prev => ({ ...prev, ...updates }));
+    }
+  }, [config.sourceDir, config.targetDir, config.fileCategory]);
+
   // Start the bundled backend sidecar in the Tauri app
   React.useEffect(() => {
     const startBackend = async () => {
@@ -314,13 +364,14 @@ const App: React.FC = () => {
       setPathCounts(prev => ({ ...prev, [key]: data }));
     };
 
-    const runScan = (key: 'source' | 'target', path?: string) => {
+    const runScan = (key: 'source' | 'target', path?: string, category: FileCategory = 'all') => {
       if (!path) {
         updateCounts(key, { count: 0, exists: true });
         return;
       }
 
-      const cached = scanCacheRef.current.get(path);
+      const cacheKey = `${key}:${category}:${path}`;
+      const cached = scanCacheRef.current.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
         updateCounts(key, { count: cached.count, exists: cached.exists });
       }
@@ -333,23 +384,23 @@ const App: React.FC = () => {
       const fastController = new AbortController();
       scanControllersRef.current[controllerKeyFast] = fastController;
 
-      pipelineApi.scanPath(path, FAST_LIMIT, fastController.signal)
+      pipelineApi.scanPath(path, category, FAST_LIMIT, fastController.signal)
         .then(res => {
           if (fastController.signal.aborted) return;
           updateCounts(key, { count: res.count, exists: res.exists });
-          scanCacheRef.current.set(path, { count: res.count, exists: res.exists, timestamp: Date.now() });
+          scanCacheRef.current.set(cacheKey, { count: res.count, exists: res.exists, timestamp: Date.now() });
 
           if (res.truncated) {
             const fullController = new AbortController();
             scanControllersRef.current[controllerKeyFull] = fullController;
-            pipelineApi.scanPath(path, undefined, fullController.signal)
+            pipelineApi.scanPath(path, category, undefined, fullController.signal)
               .then(fullRes => {
                 if (fullController.signal.aborted) return;
                 if ((key === 'source' && config.sourceDir !== path) || (key === 'target' && config.targetDir !== path)) {
                   return;
                 }
                 updateCounts(key, { count: fullRes.count, exists: fullRes.exists });
-                scanCacheRef.current.set(path, { count: fullRes.count, exists: fullRes.exists, timestamp: Date.now() });
+                scanCacheRef.current.set(cacheKey, { count: fullRes.count, exists: fullRes.exists, timestamp: Date.now() });
               })
               .catch(err => {
                 if (err?.name !== 'AbortError') {
@@ -365,9 +416,9 @@ const App: React.FC = () => {
         });
     };
 
-    runScan('source', config.sourceDir);
-    runScan('target', config.targetDir);
-  }, [config.sourceDir, config.targetDir]);
+    runScan('source', config.sourceDir, config.fileCategory);
+    runScan('target', config.targetDir, 'all');
+  }, [config.sourceDir, config.targetDir, config.fileCategory, scanRefreshKey]);
 
   // Fetch defaults on mount - DISABLED to start clean
   React.useEffect(() => {
@@ -453,12 +504,15 @@ const App: React.FC = () => {
 
     if (stepsToRun.length === 0) return;
 
-    // 3. Set running state for enabled steps
-    setSteps(prev => prev.map(s => (
-      stepsToRun.includes(s.id)
-        ? { ...s, status: PipelineStatus.RUNNING }
-        : s
-    )));
+    // 3. Show sequential-style loading in UI (backend runs sequentially in a single request)
+    const firstStepId = stepsToRun[0];
+    setSteps(prev => prev.map(s => {
+      if (!stepsToRun.includes(s.id)) return s;
+      return {
+        ...s,
+        status: s.id === firstStepId ? PipelineStatus.RUNNING : PipelineStatus.IDLE
+      };
+    }));
 
     // 4. Run all enabled steps in one backend call (single undo entry)
     const responses = await pipelineApi.runAll({ steps: stepsToRun, config });
@@ -560,17 +614,50 @@ const App: React.FC = () => {
     }
   }, [activePresetId]);
 
-  const handleApplyPreset = (preset: import('./types').PipelinePreset) => {
+  React.useEffect(() => {
+    try {
+      if (!savedLogicPresetData) {
+        localStorage.removeItem(STORAGE_SAVED_LOGIC_KEY);
+      } else {
+        localStorage.setItem(STORAGE_SAVED_LOGIC_KEY, JSON.stringify(savedLogicPresetData));
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [savedLogicPresetData]);
+
+  const savedLogicPreset = useMemo<PipelinePreset | null>(() => {
+    if (!savedLogicPresetData) return null;
+    return {
+      id: 'saved-current-logic',
+      name: 'Saved Current Logic',
+      description: savedLogicPresetData.description,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>,
+      color: '#34C759',
+      configUpdates: savedLogicPresetData.configUpdates,
+      stepUpdates: savedLogicPresetData.stepUpdates,
+    };
+  }, [savedLogicPresetData]);
+
+  const availablePresets = useMemo<PipelinePreset[]>(
+    () => (savedLogicPreset ? [...PRESETS, savedLogicPreset] : PRESETS),
+    [savedLogicPreset]
+  );
+
+  const handleApplyPreset = (preset: PipelinePreset) => {
     // 1. Update Config
     setConfig(prev => ({
       ...prev,
       ...preset.configUpdates,
-      // Deep merge specific sections if needed, but for now spread works if we replace whole objects
-      // Actually we need to be careful not to overwrite unrelated fields in sub-objects if they exist
+      timestamp_format: { ...prev.timestamp_format, ...(preset.configUpdates.timestamp_format || {}) },
+      standardize: { ...prev.standardize, ...(preset.configUpdates.standardize || {}) },
+      metadata: { ...prev.metadata, ...(preset.configUpdates.metadata || {}) },
       prefix: { ...prev.prefix, ...(preset.configUpdates.prefix || {}) },
       rename: { ...prev.rename, ...(preset.configUpdates.rename || {}) },
       extension: { ...prev.extension, ...(preset.configUpdates.extension || {}) },
       deduplicate: { ...prev.deduplicate, ...(preset.configUpdates.deduplicate || {}) },
+      group: { ...prev.group, ...(preset.configUpdates.group || {}) },
+      transfer: { ...prev.transfer, ...(preset.configUpdates.transfer || {}) },
     }));
 
     // 2. Update Step Enable/Disable states
@@ -585,6 +672,51 @@ const App: React.FC = () => {
     // 3. Track active preset
     setActivePresetId(preset.id);
   };
+
+  const handleSaveCurrentLogic = useCallback(() => {
+    const logicConfig: Partial<PipelineConfig> = {
+      fileCategory: config.fileCategory,
+      timestamp_format: { ...config.timestamp_format },
+      standardize: { ...config.standardize },
+      metadata: { ...config.metadata },
+      deduplicate: { ...config.deduplicate },
+      prefix: { ...config.prefix },
+      extension: { ...config.extension },
+      rename: { ...config.rename },
+      group: { ...config.group },
+      transfer: { ...config.transfer },
+      processing_file_limit: config.processing_file_limit,
+      max_preview_files: config.max_preview_files,
+    };
+
+    const logicSteps: Partial<Record<StepId, boolean>> = {};
+    steps
+      .filter(step => step.id !== StepId.SETUP && step.id !== StepId.PREVIEW && step.id !== StepId.SUMMARY)
+      .forEach(step => {
+        logicSteps[step.id] = step.enabled;
+      });
+
+    setSavedLogicPresetData({
+      configUpdates: logicConfig,
+      stepUpdates: logicSteps,
+      description: `Saved manual logic (${new Date().toLocaleString()})`,
+    });
+    setActivePresetId('saved-current-logic');
+  }, [config, steps]);
+
+  const handleUseSavedLogic = useCallback(() => {
+    const preset = savedLogicPreset;
+    if (!preset) return;
+    handleApplyPreset(preset);
+  }, [savedLogicPreset]);
+
+  const handleSelectSetupCard = useCallback((cardId: string) => {
+    setSelectedSetupCardId(cardId);
+    if (cardId.startsWith('pathway_')) {
+      // Pathway cards are path selectors, not logic presets.
+      setActivePresetId('none');
+    }
+  }, []);
 
   const categories: { id: FileCategory, label: string }[] = [
     { id: 'all', label: 'All' },
@@ -886,9 +1018,14 @@ const App: React.FC = () => {
             <Setup
               config={config}
               setConfig={setConfig}
-              presets={PRESETS}
+              presets={availablePresets}
               onApplyPreset={handleApplyPreset}
               activePresetId={activePresetId}
+              selectedSetupCardId={selectedSetupCardId}
+              onSelectSetupCard={handleSelectSetupCard}
+              hasSavedLogic={!!savedLogicPreset}
+              onUseSavedLogic={handleUseSavedLogic}
+              onSaveCurrentLogic={handleSaveCurrentLogic}
               onContinue={() => setActiveStepId(StepId.SUMMARY)}
             />
           ) : activeStep.id === StepId.PREVIEW ? (
@@ -898,8 +1035,21 @@ const App: React.FC = () => {
               steps={steps}
               rules={STEP_RULES}
               onProcessAll={handleProcessAll}
+              onAdjustConfiguration={() => {
+                // Keep user in Summary and return to "Ready to Process" state.
+                setSteps(prev => prev.map(step => {
+                  if (step.id === StepId.SETUP || step.id === StepId.PREVIEW || step.id === StepId.SUMMARY) {
+                    return step;
+                  }
+                  return { ...step, status: PipelineStatus.IDLE, results: [] };
+                }));
+                scanCacheRef.current.clear();
+                setScanRefreshKey(prev => prev + 1);
+                void forceRefreshPathCounts();
+                setActiveStepId(StepId.SUMMARY);
+              }}
               hasConfig={!!config.sourceDir}
-              presets={PRESETS}
+              presets={availablePresets}
               onApplyPreset={handleApplyPreset}
               config={config}
               setConfig={setConfig}
@@ -1103,7 +1253,7 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         config={config}
         setConfig={setConfig}
-        presets={PRESETS}
+        presets={availablePresets}
         onApplyPreset={handleApplyPreset}
         activePresetId={activePresetId}
         showCounts={showCounts}

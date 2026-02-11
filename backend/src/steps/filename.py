@@ -34,6 +34,7 @@ class FilenameStep(Step):
     APPEND_FIRST_TEXT = ""
     APPEND_SECOND_TEXT = ""
     SEPARATOR = "_"
+    RENAME_ACTIVE = False
 
     CLEAN_EXTENSIONS = True
     UNIFORM_EXTENSIONS = True
@@ -52,7 +53,7 @@ class FilenameStep(Step):
     ]
 
     FILENAME_FULL_PATTERN = re.compile(
-        r'(\d{4}-\d{2}-\d{2})[_ ](\d{2}-\d{2}-\d{2})(AM|PM)?',
+        r'(\d{4}-\d{2}-\d{2})[_\s](\d{1,2}-\d{2}-\d{2})\s*(AM|PM)?',
         re.IGNORECASE
     )
     FILENAME_DATE_ONLY = re.compile(r'(\d{4}-\d{2}-\d{2})')
@@ -125,6 +126,21 @@ class FilenameStep(Step):
 
         body_existing = set()
         extension_seen = set()
+        prefix_reserved = set()
+        ts_cache = {}
+        ts_counts = {}
+        ts_counters = {}
+
+        if self.TIMELINE_MODE == "timeline_only" and self.ADD_TIMESTAMP:
+            for item in items:
+                if item.action.name == "DELETE":
+                    continue
+                ts = self._build_timestamp(item.current_path.name, item.original_path, context)
+                ts = re.sub(r'_\d{6}$', '', ts)
+                suffix = item.current_path.suffix.lower()
+                key = (ts, suffix)
+                ts_cache[id(item)] = (ts, suffix)
+                ts_counts[key] = ts_counts.get(key, 0) + 1
 
         for item in items:
             if item.action.name == "DELETE":
@@ -134,7 +150,19 @@ class FilenameStep(Step):
             working_path = item.current_path
 
             # 1) Prefix
-            prefixed_name = self._apply_prefix(working_path, item.original_path, context)
+            if self.TIMELINE_MODE == "timeline_only" and self.ADD_TIMESTAMP:
+                prefixed_name = self._apply_timeline_only_prefix(
+                    working_path,
+                    item.original_path,
+                    context,
+                    prefix_reserved,
+                    ts_cache,
+                    ts_counts,
+                    ts_counters,
+                    item_id=id(item),
+                )
+            else:
+                prefixed_name = self._apply_prefix(working_path, item.original_path, context, prefix_reserved)
             if prefixed_name != working_path.name:
                 working_path = working_path.with_name(prefixed_name)
 
@@ -208,6 +236,10 @@ class FilenameStep(Step):
             if self.REPLACE_BODYNAME:
                 self.REPLACE_BODYNAME = self.REPLACE_BODYNAME.strip()
 
+        self.RENAME_ACTIVE = bool(
+            self.REPLACE_BODYNAME or self.APPEND_FIRST_TEXT or self.APPEND_SECOND_TEXT
+        )
+
         if extension_cfg:
             self.CLEAN_EXTENSIONS = get_val(extension_cfg, "clean_extensions", self.CLEAN_EXTENSIONS)
             self.UNIFORM_EXTENSIONS = get_val(extension_cfg, "uniform_extensions", self.UNIFORM_EXTENSIONS)
@@ -215,7 +247,7 @@ class FilenameStep(Step):
     # -----------------------
     # PREFIX LOGIC
     # -----------------------
-    def _apply_prefix(self, current_path: Path, data_source_path: Path, context: Context) -> str:
+    def _apply_prefix(self, current_path: Path, data_source_path: Path, context: Context, reserved: Optional[set] = None) -> str:
         if not self.ADD_TIMESTAMP or self.TIMELINE_MODE == "off":
             return current_path.name
 
@@ -223,23 +255,66 @@ class FilenameStep(Step):
             return current_path.name
 
         timestamp = self._build_timestamp(current_path.name, data_source_path, context)
-        if self.TIMELINE_MODE == "timeline_only":
-            new_name = f"{timestamp}{current_path.suffix}"
-        else:
-            new_name = f"{timestamp}_{current_path.name}"
+        new_name = f"{timestamp}_{current_path.name}"
 
         parent = current_path.parent
-        counter = 1
         test_path = parent / new_name
+        reserved = reserved or set()
 
-        while test_path.exists():
-            if self.TIMELINE_MODE == "timeline_only":
-                new_name = f"{timestamp}_{counter}{current_path.suffix}"
-            else:
-                new_name = f"{timestamp}_{current_path.stem}_{counter}{current_path.suffix}"
+        counter = 1
+        while test_path.exists() or new_name.lower() in reserved:
+            counter += 1
+            new_name = f"{timestamp}_{current_path.stem}_{counter}{current_path.suffix}"
             test_path = parent / new_name
+
+        reserved.add(new_name.lower())
+        return new_name
+
+    def _apply_timeline_only_prefix(
+        self,
+        current_path: Path,
+        data_source_path: Path,
+        context: Context,
+        reserved: set,
+        ts_cache: dict,
+        ts_counts: dict,
+        ts_counters: dict,
+        item_id: int,
+    ) -> str:
+        if not self.ADD_TIMESTAMP or self.TIMELINE_MODE == "off":
+            return current_path.name
+
+        cached = ts_cache.get(item_id)
+        if cached:
+            timestamp, suffix = cached
+        else:
+            timestamp = self._build_timestamp(current_path.name, data_source_path, context)
+            timestamp = re.sub(r'_\d{6}$', '', timestamp)
+            suffix = current_path.suffix.lower()
+
+        key = (timestamp, suffix)
+        count = ts_counts.get(key, 1)
+        parent = current_path.parent
+
+        if count <= 1:
+            new_name = f"{timestamp}{current_path.suffix}"
+            test_path = parent / new_name
+            if (test_path.exists() and test_path != current_path) or new_name.lower() in reserved:
+                count = 2  # force resolver
+            else:
+                reserved.add(new_name.lower())
+                return new_name
+
+        counter = ts_counters.get(key, 0) + 1
+        while True:
+            new_name = f"{timestamp}_{counter:06d}{current_path.suffix}"
+            test_path = parent / new_name
+            if not ((test_path.exists() and test_path != current_path) or new_name.lower() in reserved):
+                break
             counter += 1
 
+        ts_counters[key] = counter
+        reserved.add(new_name.lower())
         return new_name
 
     def _build_timestamp(self, current_filename: str, data_source_path: Path, context: Context) -> str:
@@ -247,7 +322,7 @@ class FilenameStep(Step):
         if ts:
             return ts
 
-        ts = self._extract_from_filename(current_filename)
+        ts = self._extract_from_filename(current_filename, context)
         if ts:
             return ts
 
@@ -257,15 +332,32 @@ class FilenameStep(Step):
 
         return self._format_dt(datetime.now(), context)
 
-    def _extract_from_filename(self, filename: str) -> Optional[str]:
+    def _extract_from_filename(self, filename: str, context: Context) -> Optional[str]:
         m = self.FILENAME_FULL_PATTERN.search(filename)
         if m:
-            date = m.group(1)
-            time = m.group(2)
+            date_str = m.group(1)
+            time_str = m.group(2)
             suffix = m.group(3)
-            if self.HOUR_FORMAT_12:
-                return f"{date}_{time}{suffix or 'AM'}"
-            return f"{date}_{time}"
+
+            try:
+                y, mo, d = [int(x) for x in date_str.split("-")]
+                h, mi, s = [int(x) for x in time_str.split("-")]
+
+                if suffix:
+                    # 12h with AM/PM in filename
+                    if suffix.upper() == "PM" and h != 12:
+                        h += 12
+                    if suffix.upper() == "AM" and h == 12:
+                        h = 0
+                else:
+                    # No AM/PM in filename: assume 24h unless global 12h is enforced
+                    if self.HOUR_FORMAT_12 and h == 12:
+                        h = 0
+
+                dt = datetime(y, mo, d, h, mi, s)
+                return self._format_dt_no_microseconds(dt, context)
+            except Exception:
+                return None
 
         m = self.FILENAME_DATE_ONLY.search(filename)
         if m:
@@ -315,10 +407,25 @@ class FilenameStep(Step):
         formatter = TimestampFormatter(preset, global_12h_format=self.HOUR_FORMAT_12)
         return formatter.format(dt)
 
+    def _format_dt_no_microseconds(self, dt: datetime, context: Optional[Context]) -> str:
+        preset = "pcloud"
+        if context is not None:
+            if hasattr(context.config, "timestamp_format"):
+                preset = context.config.timestamp_format.preset
+            elif isinstance(context.config, dict) and "timestamp_format" in context.config:
+                preset = context.config["timestamp_format"].get("preset", "pcloud")
+
+        formatter = TimestampFormatter(preset, global_12h_format=self.HOUR_FORMAT_12)
+        # Ensure filename-derived timestamps don't add microseconds
+        formatter.config["include_microseconds"] = False
+        return formatter.format(dt)
+
     # -----------------------
     # BODYNAME LOGIC
     # -----------------------
     def _apply_bodyname(self, file_path: Path, existing_names: set) -> Path:
+        if not self.RENAME_ACTIVE:
+            return file_path
         stem = file_path.stem
         suffix = file_path.suffix
 
@@ -394,6 +501,9 @@ class FilenameStep(Step):
             if self.CLEAN_EXTENSIONS:
                 while filename.lower().endswith(final_ext + final_ext):
                     filename = filename[: -(len(final_ext) * 2)] + final_ext
+                if filename.lower().endswith(final_ext):
+                    filename = filename[: -len(final_ext)] + final_ext
+                return self._make_safe_filename(filename)
             return self._make_safe_filename(path.stem + final_ext)
 
         detected_ext = self._detect_mime_extension(path)
@@ -429,7 +539,7 @@ class FilenameStep(Step):
         p = Path(name)
         counter = 1
         while True:
-            candidate = f"{p.stem}_{counter}{p.suffix}"
+            candidate = f"{p.stem}_{counter:06d}{p.suffix}"
             if candidate.lower() not in seen:
                 return candidate
             counter += 1
@@ -439,7 +549,3 @@ class FilenameStep(Step):
         name = re.sub(r'[<>:"/\\|?*\n\r\t]', "_", name)
         name = re.sub(r"\s+", " ", name).strip()
         return name
-
-
-
-

@@ -5,8 +5,8 @@ import { Setup } from '../components/Setup';
 import { PipelineConfig } from '../types';
 
 const baseConfig: PipelineConfig = {
-  sourceDir: '/Users/kyawhtet/Desktop/#Input',
-  targetDir: '/Users/kyawhtet/Desktop/#Output',
+  sourceDir: '/tmp/#Input',
+  targetDir: '/tmp/#Output',
   isDryRun: true,
   fileCategory: 'all',
   timestamp_format: { preset: 'pcloud', hour_format_12: true },
@@ -17,7 +17,9 @@ const baseConfig: PipelineConfig = {
   extension: { clean_extensions: true, uniform_extensions: true },
   rename: { replace_bodyname: '', append_first_text: '', append_second_text: '' },
   group: { prioritize_filename: true },
-  transfer: { overwrite: false }
+  transfer: { overwrite: false },
+  processing_file_limit: 500,
+  max_preview_files: 100
 };
 
 describe('Setup', () => {
@@ -35,7 +37,3 @@ describe('Setup', () => {
     expect(container).toMatchSnapshot();
   });
 });
-
-
-
-

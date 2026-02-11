@@ -83,6 +83,7 @@ export const pipelineApi = {
 
   async scanPath(
     path: string,
+    category: string = 'all',
     limit?: number,
     signal?: AbortSignal
   ): Promise<{ count: number; exists: boolean; truncated?: boolean; error?: string }> {
@@ -90,7 +91,7 @@ export const pipelineApi = {
       const response = await fetch(`${API_BASE_URL}/scan-path`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path, limit }),
+        body: JSON.stringify({ path, category, limit }),
         signal
       });
       if (!response.ok) throw new Error('Backend failed');

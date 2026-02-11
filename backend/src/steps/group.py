@@ -3,7 +3,7 @@ from datetime import datetime
 from PIL import Image
 from PIL.ExifTags import TAGS
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Any
 from ..core.step import Step
 from ..core.models import Context, FileItem
 
@@ -56,10 +56,13 @@ class GroupStep(Step):
                     found_date = True
 
             if not found_date:
-                # 2️⃣ Try EXIF metadata
-                dt = self._get_exif_datetime(item.original_path)
+                # 2️⃣ Try pipeline-provided metadata first
+                dt = self._get_item_metadata_datetime(item.metadata.get("timestamp"))
+                # 3️⃣ Try EXIF metadata
                 if not dt:
-                    # 3️⃣ Fallback to filesystem timestamp
+                    dt = self._get_exif_datetime(item.original_path)
+                if not dt:
+                    # 4️⃣ Fallback to filesystem timestamp
                     dt = self._get_fs_datetime(item.original_path)
 
                 if dt:
@@ -101,6 +104,17 @@ class GroupStep(Step):
                     return datetime.strptime(v, "%Y:%m:%d %H:%M:%S")
         except Exception:
             return None
+        return None
+
+    def _get_item_metadata_datetime(self, value: Any) -> Optional[datetime]:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    return datetime.strptime(value, fmt)
+                except ValueError:
+                    continue
         return None
 
     # ----------------------------

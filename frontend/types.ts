@@ -96,6 +96,7 @@ export interface PipelineConfig {
   rename: RenameConfig;
   group: GroupConfig;
   transfer: TransferConfig;
+  processing_file_limit: number;
   max_preview_files: number;
 }
 
@@ -133,8 +134,6 @@ export interface PipelinePreset {
   configUpdates: Partial<PipelineConfig>;
   stepUpdates: Partial<Record<StepId, boolean>>;
 }
-
-
 
 
 

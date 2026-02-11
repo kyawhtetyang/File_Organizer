@@ -62,6 +62,11 @@ class DeduplicateStep(Step):
     # PROCESSING
     # ------------------------------
     def process(self, context: Context, items: List[FileItem]) -> List[FileItem]:
+        faster_process = self.FASTER_PROCESS
+        deduplicate_cfg = getattr(context.config, "deduplicate", None)
+        if deduplicate_cfg is not None:
+            faster_process = getattr(deduplicate_cfg, "faster_process", faster_process)
+
         duplicate_pattern = re.compile(r"^(.*) \((\d+)\)(\.[^.]+)$")
         copy_pattern = re.compile(r"^Copy of (.*)(\.[^.]+)$")
 
@@ -120,7 +125,7 @@ class DeduplicateStep(Step):
                     score += 1000
 
                 # 5️⃣ Optional hashing (skip if FASTER_PROCESS=True)
-                if not self.FASTER_PROCESS:
+                if not faster_process:
                     h = file_hash(p, self.HASH_CHUNK_SIZE)
                     if h in hashes_seen:
                         if self.DELETE_DUPLICATES:

@@ -14,11 +14,11 @@ if getattr(sys, 'frozen', False):
         app_data_dir = Path.home() / "Library" / "Application Support" / "com.fileorganizerpro.app"
         log_dir = app_data_dir / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Redirect stderr/stdout to files immediately
         sys.stderr = open(log_dir / "startup_error.log", "a", buffering=1)
         sys.stdout = open(log_dir / "startup_out.log", "a", buffering=1)
-        
+
         print(f"Server starting at {Path(__file__)}", flush=True)
     except Exception as e:
         # If we can't even write logs, we're in trouble, but try to print to console just in case
@@ -202,6 +202,7 @@ class GroupConfig(BaseModel):
 
 class TransferConfig(BaseModel):
     overwrite: bool = False
+    cleanup_hidden_files: bool = False
 
 class PipelineConfig(BaseModel):
     sourceDir: str
@@ -217,6 +218,7 @@ class PipelineConfig(BaseModel):
     rename: RenameConfig = RenameConfig()
     group: GroupConfig = GroupConfig()
     transfer: TransferConfig = TransferConfig()
+    processing_file_limit: int = 500
 
     def validate(self):
         if not isinstance(self.sourceDir, str) or not self.sourceDir:
@@ -225,6 +227,8 @@ class PipelineConfig(BaseModel):
             raise ValueError("targetDir must be a non-empty string")
         if self.fileCategory not in {"all", "docs", "photos", "audio", "video", "code", "others"}:
             raise ValueError("fileCategory must be one of: all, docs, photos, audio, video, code, others")
+        if self.processing_file_limit < 1:
+            raise ValueError("processing_file_limit must be >= 1")
         self.prefix.validate()
         self.timestamp_format.validate()
 
@@ -244,6 +248,7 @@ class RunAllRequest(BaseModel):
 
 class ScanPathRequest(BaseModel):
     path: str
+    category: str = 'all'
     limit: Optional[int] = None
 
 class ScanPathResponse(BaseModel):
@@ -386,7 +391,7 @@ def run_step_logic(step_id: StepId, config: PipelineConfig, initial_items: List[
             item.action = ActionType.NONE
             item.destination_path = None
     else:
-        items = Scanner.scan(source_root, config.fileCategory)
+        items = Scanner.scan(source_root, config.fileCategory, config.processing_file_limit)
 
     # 3. Initialize Step
     StepClass = STEP_CLASS_MAP.get(step_id)
@@ -503,7 +508,11 @@ async def api_run_all(request: RunAllRequest):
                  return []
 
     # 2. Initial Scan (Once)
-        current_items = Scanner.scan(Path(request.config.sourceDir), request.config.fileCategory)
+        current_items = Scanner.scan(
+            Path(request.config.sourceDir),
+            request.config.fileCategory,
+            request.config.processing_file_limit
+        )
 
         # 3. Loop Steps
         for step_id in request.steps:
@@ -545,7 +554,7 @@ async def api_scan_path(request: ScanPathRequest):
             return ScanPathResponse(count=0, exists=False, error="Path does not exist")
 
         # Fast count with optional limit for quicker UI updates
-        count, truncated = Scanner.scan_count(p, 'all', request.limit)
+        count, truncated = Scanner.scan_count(p, request.category, request.limit)
         return ScanPathResponse(count=count, exists=True, truncated=truncated)
     except Exception as e:
         return ScanPathResponse(count=0, exists=True, error=str(e))
@@ -728,4 +737,3 @@ if __name__ == "__main__":
              sys.stderr.flush()
              sys.stdout.flush()
         sys.exit(1)
-

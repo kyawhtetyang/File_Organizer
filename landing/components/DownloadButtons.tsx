@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Icons } from '../constants';
 
@@ -12,10 +11,10 @@ const DownloadButtons: React.FC<DownloadButtonsProps> = ({ className = "", varia
   const primaryStyle = "bg-[#1d1d1f] text-white hover:bg-black shadow-lg shadow-black/10";
 
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-3 ${className}`}>
+    <div className={`flex flex-col items-center gap-3 ${className}`}>
       {/* Primary Download */}
       <a
-        href="https://github.com/kyawhtetyang/File_Organizer/releases/download/v0.1.0/File.Organizer_0.1.0_aarch64.dmg"
+        href="https://github.com/kyawhtetyang/File_Organizer/releases/download/v0.2.0/File.Organizer_0.2.0_aarch64.dmg"
         className={`${baseStyle} ${primaryStyle}`}
       >
         <Icons.Download />
@@ -27,10 +26,10 @@ const DownloadButtons: React.FC<DownloadButtonsProps> = ({ className = "", varia
 
       {/* Secondary */}
       <a
-        href="https://github.com/kyawhtetyang/File_Organizer/releases/tag/v0.1.0"
+        href="https://github.com/kyawhtetyang/File_Organizer/releases/tag/v0.2.0"
         className="text-[12px] font-semibold text-[#1d1d1f]/70 hover:text-[#1d1d1f] transition-colors"
       >
-        Get it on the GitHub
+        View on GitHub Releases
       </a>
     </div>
   );

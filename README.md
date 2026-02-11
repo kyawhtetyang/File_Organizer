@@ -36,6 +36,15 @@ cd frontend
 npm install
 npm run dev
 
+cd landing
+npm install
+npm run dev
+
+## Dev Ports
+- `frontend`: `http://localhost:3000`
+- `landing`: `http://localhost:3001`
+- `backend`: default from `backend/server.py`
+
 ## Tests
 From the repo root:
 cd tests

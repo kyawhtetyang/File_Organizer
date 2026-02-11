@@ -18,7 +18,18 @@ class Scanner:
     }
 
     @staticmethod
-    def scan(source_root: Path, category: str = 'all') -> List[FileItem]:
+    def _matches_category(ext: str, category: str, allowed_exts: Set[str]) -> bool:
+        if category == 'all':
+            return True
+        if category == 'others':
+            for cat_exts in Scanner.EXTENSIONS.values():
+                if ext in cat_exts:
+                    return False
+            return True
+        return ext in allowed_exts
+
+    @staticmethod
+    def scan(source_root: Path, category: str = 'all', limit: Optional[int] = None) -> List[FileItem]:
         if not source_root.exists():
             print(f"Source root does not exist: {source_root}")
             return []
@@ -30,32 +41,26 @@ class Scanner:
         if category != 'all':
             allowed_exts = Scanner.EXTENSIONS.get(category, set())
 
-        # Recursively find all files
-        # Using os.walk might be faster for large trees, but rglob is cleaner
-        # We'll use os.walk to strictly exclude hidden folders if needed, but rglob is fine for now
-        for p in source_root.rglob("*"):
-            if p.is_file() and not p.name.startswith("."):
-                # Filter by category if needed
-                if category != 'all':
-                    if category == 'others':
-                        # Check if it doesn't belong to any known category
-                        is_known = False
-                        for cat_exts in Scanner.EXTENSIONS.values():
-                            if p.suffix.lower() in cat_exts:
-                                is_known = True
-                                break
-                        if is_known:
-                            continue
-                    else:
-                        # Check specific category inclusion
-                        if p.suffix.lower() not in allowed_exts:
-                            continue
+        for root, dirs, files in os.walk(source_root):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for name in files:
+                if name.startswith("."):
+                    continue
 
-                items.append(FileItem(original_path=p.resolve(), current_path=p.resolve()))
+                ext = os.path.splitext(name)[1].lower()
+                if not Scanner._matches_category(ext, category, allowed_exts):
+                    continue
+
+                p = (Path(root) / name).resolve()
+                items.append(FileItem(original_path=p, current_path=p))
+
+                # User-configurable processing limit
+                if limit is not None and len(items) >= limit:
+                    return items
 
                 # Hard limit for performance
                 if len(items) >= 50000:
-                    break
+                    return items
 
         return items
 
@@ -76,19 +81,9 @@ class Scanner:
             for name in files:
                 if name.startswith("."):
                     continue
-                if category != 'all':
-                    ext = os.path.splitext(name)[1].lower()
-                    if category == 'others':
-                        is_known = False
-                        for cat_exts in Scanner.EXTENSIONS.values():
-                            if ext in cat_exts:
-                                is_known = True
-                                break
-                        if is_known:
-                            continue
-                    else:
-                        if ext not in allowed_exts:
-                            continue
+                ext = os.path.splitext(name)[1].lower()
+                if not Scanner._matches_category(ext, category, allowed_exts):
+                    continue
 
                 count += 1
                 if limit is not None and count >= limit:
@@ -96,7 +91,6 @@ class Scanner:
                     return count, truncated
 
         return count, truncated
-
 
 
 

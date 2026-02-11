@@ -6,6 +6,7 @@ interface PipelineSummaryProps {
   steps: PipelineStep[];
   rules: Record<StepId, string[]>;
   onProcessAll: () => void;
+  onAdjustConfiguration: () => void;
   hasConfig: boolean;
   presets?: PipelinePreset[];
   onApplyPreset?: (preset: PipelinePreset) => void;
@@ -17,6 +18,7 @@ interface PipelineSummaryProps {
 export const PipelineSummary: React.FC<PipelineSummaryProps> = ({
   steps,
   onProcessAll,
+  onAdjustConfiguration,
   hasConfig,
   presets,
   onApplyPreset,
@@ -52,7 +54,8 @@ export const PipelineSummary: React.FC<PipelineSummaryProps> = ({
             {/* Adjust Configuration Button */}
             <div className="flex justify-end">
               <button
-                onClick={() => window.location.reload()}
+                type="button"
+                onClick={onAdjustConfiguration}
                 className="text-[12px] font-bold text-[#fa233b] bg-[#fa233b]/10 hover:bg-[#fa233b]/20 px-3 py-1.5 rounded-lg transition-colors flex items-center space-x-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"></path></svg>

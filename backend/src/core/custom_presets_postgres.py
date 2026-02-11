@@ -62,3 +62,4 @@ class CustomPresetsPostgres:
                 cursor.execute("DELETE FROM custom_presets WHERE id = %s", (preset_id,))
 
 
+

@@ -6,7 +6,7 @@ exports[`ResultsTable > renders settings table layout (snapshot) 1`] = `
     class="h-full flex flex-col items-center justify-center px-10 py-20 bg-transparent text-center overflow-y-auto custom-scrollbar"
   >
     <style>
-
+      
           @keyframes breathe {
             0%, 100% { transform: scale(1); box-shadow: 0 10px 40px -10px rgba(250, 35, 59, 0.4); }
             50% { transform: scale(1.02); box-shadow: 0 15px 50px -5px rgba(250, 35, 59, 0.6); }
@@ -14,7 +14,7 @@ exports[`ResultsTable > renders settings table layout (snapshot) 1`] = `
           .btn-pulse {
             animation: breathe 3s ease-in-out infinite;
           }
-
+        
     </style>
     <div
       class="max-w-3xl w-full"
@@ -121,7 +121,7 @@ exports[`ResultsTable > renders settings table layout (snapshot) 1`] = `
                     class="
                               bg-[#3a3a3c] text-white text-[12px] font-mono px-2 py-1 rounded w-full text-center border outline-none
                               border-transparent focus:ring-1 focus:ring-[#fa233b]
-
+                              
                             "
                     placeholder=""
                     title=""
@@ -168,7 +168,3 @@ exports[`ResultsTable > renders settings table layout (snapshot) 1`] = `
   </div>
 </div>
 `;
-
-
-
-

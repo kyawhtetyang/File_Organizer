@@ -163,6 +163,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     </div>
                                     <div className="flex items-center justify-between pt-4 border-t border-white/5">
                                         <div>
+                                            <div className="text-[13px] font-medium text-white mb-1">Global File Limit</div>
+                                            <div className="text-[11px] text-[#86868b]">Max files to process per run.</div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={config.processing_file_limit || 500}
+                                            onChange={(e) => {
+                                                const next = parseInt(e.target.value, 10);
+                                                setConfig(prev => ({
+                                                    ...prev,
+                                                    processing_file_limit: Number.isFinite(next) && next > 0 ? next : 500
+                                                }));
+                                            }}
+                                            className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-right text-white text-sm focus:outline-none focus:border-[#fa233b]"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                        <div>
                                             <div className="text-[13px] font-medium text-white mb-1">Max Preview Files</div>
                                             <div className="text-[11px] text-[#86868b]">Rows to display in preview table.</div>
                                         </div>

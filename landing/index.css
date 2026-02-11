@@ -1,29 +1,21 @@
-/* Base styles and utility class shims for the CDN Tailwind build */
+/* Base layout: native document scroll only */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Inter', sans-serif;
 }
 
-.app-root,
-html,
-body,
 #root {
-  font-family: 'Inter', sans-serif;
+  min-height: auto;
 }
 
 .font-inter {
   font-family: 'Inter', sans-serif;
 }
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 999px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.04);
-}
-

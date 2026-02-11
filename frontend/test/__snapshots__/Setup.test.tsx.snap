@@ -19,7 +19,3 @@ exports[`Setup > renders setup screen (snapshot) 1`] = `
   </div>
 </div>
 `;
-
-
-
-

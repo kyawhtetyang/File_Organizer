@@ -10,6 +10,7 @@ export const Preview: React.FC<PreviewProps> = ({ config }) => {
     const [files, setFiles] = useState<FileChange[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [lastScannedAt, setLastScannedAt] = useState<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -65,6 +66,7 @@ export const Preview: React.FC<PreviewProps> = ({ config }) => {
                             status: 'pending',
                             size: f.size // Store size for display
                         })));
+                        setLastScannedAt(new Date().toLocaleTimeString());
                     } else {
                         setError(res.error || 'Failed to list files');
                     }
@@ -118,8 +120,15 @@ export const Preview: React.FC<PreviewProps> = ({ config }) => {
 
                 <div className="flex items-center justify-between">
                     <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-[#fa233b]">Source Preview</h3>
-                    <div className="text-[11px] font-bold text-[#8e8e93] bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                        {files.length} Files Found
+                    <div className="flex items-center gap-2">
+                        {lastScannedAt && (
+                            <div className="text-[10px] font-mono text-[#8e8e93] bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5">
+                                Last scanned at {lastScannedAt}
+                            </div>
+                        )}
+                        <div className="text-[11px] font-bold text-[#8e8e93] bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                            {files.length} Files Found
+                        </div>
                     </div>
                 </div>
 
@@ -176,4 +185,3 @@ export const Preview: React.FC<PreviewProps> = ({ config }) => {
         </div>
     );
 };
-

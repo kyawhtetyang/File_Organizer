@@ -47,6 +47,10 @@ class StandardizeStep(Step):
                 if hasattr(context.config, "standardize"):
                     fallback_enabled = context.config.standardize.use_filename_fallback
                 logging.info(f"Skipping folder {folder_name}: Does not match timestamp format (Fallback: {fallback_enabled})")
+                # Keep items valid for downstream steps/tests even when this step cannot standardize.
+                for item in group_items:
+                    if item.destination_path is None:
+                        item.destination_path = item.current_path
                 continue
 
             logging.info(f"Processing folder {folder_name} (Date: {dt}) - {len(group_items)} files")
