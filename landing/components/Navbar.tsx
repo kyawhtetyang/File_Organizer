@@ -3,7 +3,8 @@ import { APP_NAME } from '../constants';
 
 const Navbar: React.FC = () => {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-  const isUpdates = pathname === '/updates';
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  const isUpdates = pathname === '/updates' || hash === '#/updates';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/60 backdrop-blur-2xl border-b border-white/40 shadow-[0_1px_0_rgba(255,255,255,0.8)]">
@@ -25,13 +26,13 @@ const Navbar: React.FC = () => {
         {/* Navigation */}
         <div className="flex items-center gap-5 text-[12px] font-semibold pr-0.5">
           <a
-            href="/"
+            href="/#/"
             className={`${!isUpdates ? 'text-[#1d1d1f]' : 'text-[#1d1d1f]/55 hover:text-[#1d1d1f]'} transition-colors`}
           >
             Home
           </a>
           <a
-            href="/updates"
+            href="/#/updates"
             className={`${isUpdates ? 'text-[#1d1d1f]' : 'text-[#1d1d1f]/55 hover:text-[#1d1d1f]'} transition-colors`}
           >
             Updates

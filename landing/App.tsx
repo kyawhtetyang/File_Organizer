@@ -30,7 +30,7 @@ const RELEASES = [
 const Footer: React.FC = () => (
   <footer className="w-full bg-white/30 backdrop-blur-md border-t border-white z-20">
     <div className="mx-auto max-w-[1300px] px-6 sm:px-8 md:px-12 lg:px-20 xl:px-24 py-4 lg:py-5 flex flex-col md:flex-row items-center justify-between text-[11px] font-semibold tracking-tight text-[#a6a6ab]">
-      <a className="hover:text-[#6b6b70] transition-colors" href="/updates">Updates</a>
+      <a className="hover:text-[#6b6b70] transition-colors" href="/#/updates">Updates</a>
       <div className="opacity-70 cursor-default uppercase tracking-widest mt-2 md:mt-0">
         &copy; 2026 {APP_NAME}
       </div>
@@ -72,7 +72,9 @@ const UpdatesPage: React.FC = () => (
 );
 
 const App: React.FC = () => {
-  const isUpdatesPage = typeof window !== 'undefined' && window.location.pathname === '/updates';
+  const isUpdatesPage = typeof window !== 'undefined' && (
+    window.location.pathname === '/updates' || window.location.hash === '#/updates'
+  );
   if (isUpdatesPage) return <UpdatesPage />;
 
   return (
