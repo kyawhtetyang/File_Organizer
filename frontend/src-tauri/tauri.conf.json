@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "File Organizer",
   "version": "0.2.0",
-  "identifier": "com.fileorganizer.app",
+  "identifier": "com.fileorganizer",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:3000",
@@ -37,3 +37,4 @@
     ]
   }
 }
+

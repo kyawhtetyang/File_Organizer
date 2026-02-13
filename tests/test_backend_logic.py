@@ -30,7 +30,7 @@ def make_config(**overrides):
         standardize=SimpleNamespace(use_filename_fallback=False),
         group=SimpleNamespace(prioritize_filename=True, structure="year_month"),
         transfer=SimpleNamespace(overwrite=False, cleanup_hidden_files=False),
-        deduplicate=SimpleNamespace(faster_process=True),
+        deduplicate=SimpleNamespace(mode='safe'),
     )
     for k, v in overrides.items():
         setattr(cfg, k, v)
@@ -170,14 +170,14 @@ class TestDeduplicateStep(unittest.TestCase):
             root = Path(td)
             a = root / "photo.jpg"
             b = root / "photo (1).jpg"
-            a.write_text("a")
-            b.write_text("b")
+            a.write_text("same")
+            b.write_text("same")
             items = [FileItem(a, a), FileItem(b, b)]
             out = DeduplicateStep().process(Context(True, root, root, make_config()), items)
             deletes = [i for i in out if i.action == ActionType.DELETE]
             self.assertEqual(len(deletes), 1)
 
-    def test_respects_faster_process_toggle(self):
+    def test_mode_controls_hash_verification_scope(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             a = root / "photo.jpg"
@@ -186,14 +186,14 @@ class TestDeduplicateStep(unittest.TestCase):
             b.write_text("b")
             items = [FileItem(a, a), FileItem(b, b)]
 
-            fast_cfg = make_config(deduplicate=SimpleNamespace(faster_process=True))
+            safe_cfg = make_config(deduplicate=SimpleNamespace(mode='safe'))
             with patch("backend.src.steps.deduplicate.file_hash") as hash_mock:
-                DeduplicateStep().process(Context(True, root, root, fast_cfg), items)
-                self.assertFalse(hash_mock.called)
+                DeduplicateStep().process(Context(True, root, root, safe_cfg), items)
+                self.assertTrue(hash_mock.called)
 
-            slow_cfg = make_config(deduplicate=SimpleNamespace(faster_process=False))
+            smart_cfg = make_config(deduplicate=SimpleNamespace(mode='smart'))
             with patch("backend.src.steps.deduplicate.file_hash", return_value="h") as hash_mock:
-                DeduplicateStep().process(Context(True, root, root, slow_cfg), items)
+                DeduplicateStep().process(Context(True, root, root, smart_cfg), items)
                 self.assertTrue(hash_mock.called)
 
 
@@ -340,3 +340,4 @@ class TestSQLiteManagers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

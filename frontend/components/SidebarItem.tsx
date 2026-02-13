@@ -7,12 +7,10 @@ interface SidebarItemProps {
   isActive?: boolean;
   onSelect?: (id: StepId) => void;
   onToggle?: (id: StepId) => void;
-  isDark?: boolean;
   count?: number;
   label?: string;            // Allow overriding name directly
   onClick?: () => void;      // Allow custom click handler
   rightContent?: React.ReactNode; // Allow custom right-side content (for Start/Dest badges)
-  isDryRun?: boolean;
   disabled?: boolean;
 }
 
@@ -21,12 +19,10 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   isActive = false,
   onSelect,
   onToggle,
-  isDark,
   count,
   label,
   onClick,
   rightContent,
-  isDryRun = false,
   disabled = false,
 }) => {
   // If "step" is provided, derive state from it. Otherwise use defaults.

@@ -110,7 +110,9 @@ describe('App summary adjust refresh', () => {
       expect(apiMocks.runAll).toHaveBeenCalledTimes(1);
     });
 
-    const runAllArg = apiMocks.runAll.mock.calls[0][0];
+    const firstRunAllCall = (apiMocks.runAll as any).mock.calls[0];
+    expect(firstRunAllCall).toBeDefined();
+    const runAllArg = firstRunAllCall![0] as { config: { isDryRun: boolean } };
     expect(runAllArg.config.isDryRun).toBe(false);
 
     const scanCallsBeforeAdjust = apiMocks.scanPath.mock.calls.length;

@@ -52,7 +52,7 @@ const PRESETS: import('./types').PipelinePreset[] = [
       timestamp_format: { preset: 'pcloud', hour_format_12: true },
       rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
       extension: { clean_extensions: true, uniform_extensions: false },
-      deduplicate: { faster_process: true }
+      deduplicate: { mode: 'safe' }
     },
     stepUpdates: {
       [StepId.DEDUPLICATE]: true,
@@ -72,7 +72,7 @@ const PRESETS: import('./types').PipelinePreset[] = [
       timestamp_format: { preset: 'pcloud', hour_format_12: true },
       rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
       extension: { clean_extensions: true, uniform_extensions: false },
-      deduplicate: { faster_process: true },
+      deduplicate: { mode: 'safe' },
       group: { prioritize_filename: false }
     },
     stepUpdates: {
@@ -95,7 +95,7 @@ const PRESETS: import('./types').PipelinePreset[] = [
       timestamp_format: { preset: 'google_photos', hour_format_12: false },
       rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
       extension: { clean_extensions: true, uniform_extensions: false },
-      deduplicate: { faster_process: true },
+      deduplicate: { mode: 'safe' },
       group: { prioritize_filename: false }
     },
     stepUpdates: {
@@ -117,7 +117,7 @@ const PRESETS: import('./types').PipelinePreset[] = [
       timestamp_format: { preset: 'pcloud', hour_format_12: true },
       rename: { replace_bodyname: "", append_first_text: "", append_second_text: "" },
       extension: { clean_extensions: true, uniform_extensions: false },
-      deduplicate: { faster_process: true },
+      deduplicate: { mode: 'safe' },
       group: { prioritize_filename: false }
     },
     stepUpdates: {
@@ -148,12 +148,19 @@ const App: React.FC = () => {
   const STORAGE_CONFIG_KEY = 'file_organizer_config_v1';
   const STORAGE_PRESET_KEY = 'file_organizer_preset_v1';
   const STORAGE_SAVED_LOGIC_KEY = 'file_organizer_saved_logic_v1';
+  const normalizeDeduplicateMode = (deduplicate: any): 'safe' | 'smart' =>
+    deduplicate?.mode === 'smart' ? 'smart' : 'safe';
 
   const loadStoredConfig = (): PipelineConfig | null => {
     try {
       const raw = localStorage.getItem(STORAGE_CONFIG_KEY);
       if (!raw) return null;
-      return JSON.parse(raw) as PipelineConfig;
+      const parsed = JSON.parse(raw) as PipelineConfig;
+      return {
+        ...parsed,
+        sourceDir: '',
+        targetDir: ''
+      } as PipelineConfig;
     } catch {
       return null;
     }
@@ -217,6 +224,7 @@ const App: React.FC = () => {
         sourceDir: stored.sourceDir || '',
         targetDir: stored.targetDir || '',
         fileCategory: stored.fileCategory || 'all',
+        deduplicate: { mode: normalizeDeduplicateMode((stored as any).deduplicate) },
         processing_file_limit: stored.processing_file_limit && stored.processing_file_limit > 0 ? stored.processing_file_limit : 500,
       };
     }
@@ -238,7 +246,7 @@ const App: React.FC = () => {
         keep_original_name: false
       },
       deduplicate: {
-        faster_process: true
+        mode: 'safe'
       },
       prefix: {
         add_timestamp: true,
@@ -420,11 +428,6 @@ const App: React.FC = () => {
     runScan('target', config.targetDir, 'all');
   }, [config.sourceDir, config.targetDir, config.fileCategory, scanRefreshKey]);
 
-  // Fetch defaults on mount - DISABLED to start clean
-  React.useEffect(() => {
-    // pipelineApi.getDefaults().then(defaults => { ... });
-  }, []);
-
   const activeStep = useMemo(() =>
     steps.find(s => s.id === activeStepId) || steps[0],
     [steps, activeStepId]
@@ -555,17 +558,14 @@ const App: React.FC = () => {
   };
 
   const checkUndoAvailability = async () => {
-    console.log('🔍 Checking undo availability...');
     const history = await pipelineApi.getUndoHistory();
-    console.log('📜 Undo history:', history);
     const canUndoNow = history.length > 0;
-    console.log(`✅ Can undo: ${canUndoNow} (history length: ${history.length})`);
     setCanUndo(canUndoNow);
   };
 
   // Check undo availability on mount
   React.useEffect(() => {
-    checkUndoAvailability();
+    void checkUndoAvailability();
   }, []);
 
   React.useEffect(() => {
@@ -600,7 +600,12 @@ const App: React.FC = () => {
 
   React.useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
+      const persistedConfig = {
+        ...config,
+        sourceDir: '',
+        targetDir: ''
+      };
+      localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(persistedConfig));
     } catch {
       // ignore storage errors
     }
@@ -756,7 +761,6 @@ const App: React.FC = () => {
                   step={step}
                   isActive={activeStepId === step.id}
                   onSelect={(id) => { setActiveStepId(id); setIsSidebarOpen(false); }}
-                  isDark={true}
                 />
               ))}
           </div>
@@ -777,8 +781,6 @@ const App: React.FC = () => {
                     isActive={activeStepId === step.id}
                     onSelect={(id) => { setActiveStepId(id); setIsSidebarOpen(false); }}
                     onToggle={step.id === StepId.PREVIEW ? undefined : handleToggleStep}
-                    isDark={true}
-                    isDryRun={config.isDryRun}
                     count={step.id === StepId.PREVIEW || showCounts ? step.results?.length : undefined}
                     disabled={activePresetId !== 'none' && step.id !== StepId.PREVIEW}
                     rightContent={step.id === StepId.PREVIEW && config.sourceDir ? (
@@ -807,7 +809,6 @@ const App: React.FC = () => {
                   step={step}
                   isActive={activeStepId === step.id}
                   onSelect={(id) => { setActiveStepId(id); setIsSidebarOpen(false); }}
-                  isDark={true}
                   count={fileStats.all}
                 />
               ))}
@@ -1076,11 +1077,11 @@ const App: React.FC = () => {
                 }
               ] : activeStep.id === StepId.DEDUPLICATE ? [
                 {
-                  description: "Clean",
-                  label: "Faster Process",
-                  example: "Skips content hashing",
-                  key: "faster_process",
-                  value: config.deduplicate.faster_process
+                  description: "Deduplicate",
+                  label: config.deduplicate.mode === 'smart' ? "Smart (Slower)" : "Safe (Fast)",
+                  example: "Off = Safe, On = Smart",
+                  key: "smart_mode",
+                  value: config.deduplicate.mode === 'smart'
                 }
               ] : activeStep.id === StepId.FILENAME ? ([
                 {
@@ -1172,13 +1173,15 @@ const App: React.FC = () => {
                     }));
                   }
                 } else if (activeStep.id === StepId.DEDUPLICATE) {
-                  setConfig(prev => ({
-                    ...prev,
-                    deduplicate: {
-                      ...prev.deduplicate,
-                      [key]: !prev.deduplicate[key as keyof typeof prev.deduplicate]
-                    }
-                  }));
+                  if (key === 'smart_mode') {
+                    setConfig(prev => ({
+                      ...prev,
+                      deduplicate: {
+                        ...prev.deduplicate,
+                        mode: prev.deduplicate.mode === 'smart' ? 'safe' : 'smart'
+                      }
+                    }));
+                  }
                 } else if (activeStep.id === StepId.GROUP) {
                   setConfig(prev => ({
                     ...prev,
@@ -1264,3 +1267,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

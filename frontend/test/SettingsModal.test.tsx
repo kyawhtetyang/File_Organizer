@@ -12,7 +12,7 @@ const baseConfig: PipelineConfig = {
   timestamp_format: { preset: 'pcloud', hour_format_12: true },
   standardize: { use_filename_fallback: false },
   metadata: { start_datetime: '1993-07-12 04-52-24 AM', add_timestamp: true, keep_original_name: false },
-  deduplicate: { faster_process: true },
+  deduplicate: { mode: 'safe' },
   prefix: { add_timestamp: true, timeline_mode: 'timeline_plus' },
   extension: { clean_extensions: true, uniform_extensions: true },
   rename: { replace_bodyname: '', append_first_text: '', append_second_text: '' },

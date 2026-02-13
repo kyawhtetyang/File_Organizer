@@ -549,3 +549,4 @@ class FilenameStep(Step):
         name = re.sub(r'[<>:"/\\|?*\n\r\t]', "_", name)
         name = re.sub(r"\s+", " ", name).strip()
         return name
+

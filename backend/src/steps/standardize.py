@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
 import logging
 import subprocess
 import shutil
@@ -149,7 +149,7 @@ class StandardizeStep(Step):
 
         return items
 
-    def _parse_folder_name(self, name: str, context: Context) -> datetime:
+    def _parse_folder_name(self, name: str, context: Context) -> Optional[datetime]:
         """
         Parse folder name based on global timestamp config.
         Only supports pCloud style for now as requested: "2024-04-24 1-52-24PM"
@@ -176,7 +176,7 @@ class StandardizeStep(Step):
                 continue
         return None
 
-    def _parse_filename_timestamp(self, filename: str) -> datetime:
+    def _parse_filename_timestamp(self, filename: str) -> Optional[datetime]:
         """
         Parse timestamp from filename when folder name is not usable.
         Matches: 2001-11-15 12-10-00AM or 2024-05-20 14-30-00

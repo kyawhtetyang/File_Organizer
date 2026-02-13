@@ -24,3 +24,4 @@ This contains everything you need to run your app locally.
 - Hero screenshots:
   - `public/setup-page.png`
   - `public/summary-page.png`
+

@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from types import SimpleNamespace
 from backend.server import run_step_logic, StepId, PipelineConfig, TimestampFormatConfig, StandardizeConfig, DeduplicateConfig, PrefixConfig, RenameConfig, ExtensionConfig, GroupConfig, TransferConfig
 from backend.src.core.scanner import Scanner
 
@@ -13,7 +12,7 @@ def make_config(source: Path, target: Path, dry_run: bool = True):
         fileCategory='all',
         timestamp_format=TimestampFormatConfig(preset='pcloud', hour_format_12=True),
         standardize=StandardizeConfig(use_filename_fallback=True),
-        deduplicate=DeduplicateConfig(faster_process=True),
+        deduplicate=DeduplicateConfig(mode="safe"),
         prefix=PrefixConfig(add_timestamp=True),
         rename=RenameConfig(replace_bodyname='', append_first_text='edge', append_second_text='case'),
         extension=ExtensionConfig(clean_extensions=True, uniform_extensions=True),
@@ -93,10 +92,12 @@ def run_edge_cases():
     print("EDGE CASE TEST COMPLETE")
 
 
-if __name__ == "__main__":
+def test_edge_case_runner_smoke():
     run_edge_cases()
 
 
+if __name__ == "__main__":
+    run_edge_cases()
 
 
 

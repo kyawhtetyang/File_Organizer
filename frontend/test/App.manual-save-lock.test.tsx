@@ -72,7 +72,7 @@ describe('Manual preset save lock behavior', () => {
     fireEvent.click(screen.getByText('filename'));
 
     await waitFor(() => {
-      expect(screen.getByText('Results Locked: true')).toBeInTheDocument();
+      expect(Boolean(screen.getByText('Results Locked: true'))).toBe(true);
     });
   });
 });

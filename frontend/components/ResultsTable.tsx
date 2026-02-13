@@ -281,3 +281,4 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({ files, isDark, rules
 
 
 
+

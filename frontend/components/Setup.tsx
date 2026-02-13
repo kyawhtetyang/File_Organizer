@@ -191,6 +191,25 @@ export const Setup: React.FC<SetupProps> = ({
     }, []);
 
     useEffect(() => {
+        const source = config.sourceDir?.trim();
+        const target = config.targetDir?.trim();
+        if (!source || !target || isInvalidPair(source, target)) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setPairOverrides(prev => ({
+                ...prev,
+                default: { source, target }
+            }));
+            setDefaultPair({ source, target });
+            void pipelineApi.setPresetOverride('default', source, target);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [config.sourceDir, config.targetDir]);
+
+    useEffect(() => {
         let cancelled = false;
         const check = async () => {
             if (!config.sourceDir) {
@@ -660,3 +679,4 @@ export const Setup: React.FC<SetupProps> = ({
         </div >
     );
 };
+

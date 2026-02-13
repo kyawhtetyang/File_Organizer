@@ -3,6 +3,9 @@ package-lock.json/
 dist/
 backend/build/
 backend/dist/
+backend/#Input/
+backend/#Output/
+backend/a/
 __install/
 .DS_Store
 .env
@@ -22,3 +25,4 @@ venv/
 *.dmg
 frontend/src-tauri/target/
 frontend/src-tauri/binaries/
+

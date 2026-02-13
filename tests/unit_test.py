@@ -26,7 +26,7 @@ def make_config(**overrides):
         standardize=SimpleNamespace(use_filename_fallback=False),
         group=SimpleNamespace(prioritize_filename=True, structure="year_month"),
         transfer=SimpleNamespace(overwrite=False),
-        deduplicate=SimpleNamespace(faster_process=True),
+        deduplicate=SimpleNamespace(mode='safe'),
     )
     for k, v in overrides.items():
         setattr(cfg, k, v)
@@ -168,10 +168,10 @@ def test_deduplicate_step():
         p = Path(td)
         f1 = p / "photo.jpg"
         f2 = p / "photo (1).jpg"
-        f1.write_text("a")
-        f2.write_text("b")
+        f1.write_text("same")
+        f2.write_text("same")
 
-        cfg = make_config(deduplicate=SimpleNamespace(faster_process=True))
+        cfg = make_config(deduplicate=SimpleNamespace(mode='safe'))
         ctx = Context(dry_run=True, source_root=p, target_root=p, config=cfg)
 
         items = [FileItem(original_path=f1, current_path=f1), FileItem(original_path=f2, current_path=f2)]

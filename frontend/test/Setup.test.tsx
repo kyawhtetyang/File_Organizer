@@ -4,6 +4,16 @@ import { render } from '@testing-library/react';
 import { Setup } from '../components/Setup';
 import { PipelineConfig } from '../types';
 
+vi.mock('../services/api', () => ({
+  pipelineApi: {
+    getPresetOverrides: vi.fn().mockResolvedValue({}),
+    getDefaults: vi.fn().mockResolvedValue({}),
+    setPresetOverride: vi.fn().mockResolvedValue({ success: true }),
+    scanPath: vi.fn().mockResolvedValue({ count: 0, exists: true, truncated: false }),
+    createPath: vi.fn().mockResolvedValue({ success: true }),
+  },
+}));
+
 const baseConfig: PipelineConfig = {
   sourceDir: '/tmp/#Input',
   targetDir: '/tmp/#Output',
@@ -12,7 +22,7 @@ const baseConfig: PipelineConfig = {
   timestamp_format: { preset: 'pcloud', hour_format_12: true },
   standardize: { use_filename_fallback: false },
   metadata: { start_datetime: '1993-07-12 04-52-24 AM', add_timestamp: true, keep_original_name: false },
-  deduplicate: { faster_process: true },
+  deduplicate: { mode: 'safe' },
   prefix: { add_timestamp: true, timeline_mode: 'timeline_plus' },
   extension: { clean_extensions: true, uniform_extensions: true },
   rename: { replace_bodyname: '', append_first_text: '', append_second_text: '' },
@@ -37,3 +47,4 @@ describe('Setup', () => {
     expect(container).toMatchSnapshot();
   });
 });
+

@@ -1,4 +1,4 @@
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg(not(debug_assertions))]
 use tauri::Manager;
 
 pub fn run() {
@@ -61,4 +61,5 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
 

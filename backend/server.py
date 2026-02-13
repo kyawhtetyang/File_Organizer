@@ -166,7 +166,11 @@ class MetadataConfig(BaseModel):
 
 
 class DeduplicateConfig(BaseModel):
-    faster_process: bool = True
+    mode: str = "safe"
+
+    def validate(self):
+        if self.mode not in {"safe", "smart"}:
+            raise ValueError("deduplicate.mode must be one of: safe, smart")
 
 class PrefixConfig(BaseModel):
     add_timestamp: bool = True
@@ -231,6 +235,7 @@ class PipelineConfig(BaseModel):
             raise ValueError("processing_file_limit must be >= 1")
         self.prefix.validate()
         self.timestamp_format.validate()
+        self.deduplicate.validate()
 
 class FileChange(BaseModel):
     original: str
@@ -461,6 +466,26 @@ def run_step_logic(step_id: StepId, config: PipelineConfig, initial_items: List[
 
     return processed_items, changes, (undo_changes if not config.isDryRun else [])
 
+
+def _ensure_source_dir_exists(source_dir: str) -> Optional[str]:
+    """
+    Ensure source directory exists.
+    If a placeholder-style path contains '#', create it automatically.
+    Returns None on success, otherwise an error message.
+    """
+    if os.path.exists(source_dir):
+        return None
+
+    if "#" in source_dir:
+        try:
+            os.makedirs(source_dir, exist_ok=True)
+            print(f"Auto-created source directory: {source_dir}")
+            return None
+        except Exception as e:
+            return f"Could not create source directory: {str(e)}"
+
+    return f"Source directory not found: {source_dir}"
+
 @app.post("/api/run-step", response_model=StepResponse)
 async def api_run_step(request: RunStepRequest):
     try:
@@ -469,16 +494,9 @@ async def api_run_step(request: RunStepRequest):
         print(f"🔴 Processing Step: {request.step_id} | Dry Run: {request.config.isDryRun}")
 
 
-        if not os.path.exists(request.config.sourceDir):
-             # Auto-create if it looks like a placeholder path (contains #)
-             if "#" in request.config.sourceDir:
-                 try:
-                     os.makedirs(request.config.sourceDir, exist_ok=True)
-                     print(f"Auto-created source directory: {request.config.sourceDir}")
-                 except Exception as e:
-                     return StepResponse(step_id=request.step_id, success=False, processed_files=[], error=f"Could not create source directory: {str(e)}")
-             else:
-                 return StepResponse(step_id=request.step_id, success=False, processed_files=[], error=f"Source directory not found: {request.config.sourceDir}")
+        source_error = _ensure_source_dir_exists(request.config.sourceDir)
+        if source_error:
+            return StepResponse(step_id=request.step_id, success=False, processed_files=[], error=source_error)
 
         results, changes, _ = run_step_logic(request.step_id, request.config)
         return StepResponse(step_id=request.step_id, success=True, processed_files=changes)
@@ -496,16 +514,9 @@ async def api_run_all(request: RunAllRequest):
     try:
         request.config.validate()
         # 1. Initial Scan Validation
-        if not os.path.exists(request.config.sourceDir):
-             # Auto-create if it looks like a placeholder path (contains #)
-             if "#" in request.config.sourceDir:
-                 try:
-                     os.makedirs(request.config.sourceDir, exist_ok=True)
-                     print(f"Auto-created source directory: {request.config.sourceDir}")
-                 except Exception:
-                     return []
-             else:
-                 return []
+        source_error = _ensure_source_dir_exists(request.config.sourceDir)
+        if source_error:
+            return []
 
     # 2. Initial Scan (Once)
         current_items = Scanner.scan(
@@ -737,3 +748,4 @@ if __name__ == "__main__":
              sys.stderr.flush()
              sys.stdout.flush()
         sys.exit(1)
+

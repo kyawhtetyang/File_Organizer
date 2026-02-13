@@ -62,7 +62,7 @@ export interface MetadataConfig {
 }
 
 export interface DeduplicateConfig {
-  faster_process: boolean;
+  mode: 'safe' | 'smart';
 }
 
 export interface TimestampFormatConfig {
