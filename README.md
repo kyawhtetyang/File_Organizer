@@ -1,30 +1,16 @@
 # File Organizer Pro
 
-File Organizer Pro is a local desktop app that safely standardizes, deduplicates, renames, groups, and transfers files with full previews and undo support. It combines a Python FastAPI backend with a Tauri desktop UI so users can audit each pipeline step before any files are changed.
-
-## Pitch (1 line)
-Local, undo-safe file organization with step-by-step previews that makes bulk cleanup predictable instead of risky.
+Automated local file-processing pipeline with preview, presets, and undo support.
 
 ## Pipeline
 `Standardize -> Deduplicate -> Filename -> Group -> Transfer`
 
-## Key Features
-- Step-based processing with per-step previews and results
+## Main Features
+- Step-based processing with per-step preview/results
 - Deduplicate modes: `safe` and `smart`
-- Presets with per-preset source and target overrides
-- Undo history (SQLite by default; Postgres optional via `DATABASE_URL`)
+- Presets and per-preset source/target overrides
+- Undo history (`SQLite` in local/dev, Postgres optional)
 - Tauri desktop support (frontend + backend sidecar)
-
-## Tech Stack
-- Backend: Python, FastAPI
-- Frontend: React, Vite
-- Desktop: Tauri
-- Storage: SQLite (default), Postgres (optional)
-
-## Architecture
-- `backend/` hosts the pipeline engine, step logic, and undo manager
-- `frontend/` provides the step builder, preview UI, and results view
-- `landing/` is the marketing site and product overview
 
 ## Repository Structure
 - `frontend/` React + Vite UI
@@ -32,10 +18,9 @@ Local, undo-safe file organization with step-by-step previews that makes bulk cl
 - `tests/` backend/unit integration tests
 - `landing/` marketing/landing web app
 
-## Quickstart (Local Development)
-From the repository root (`v0/`):
+## Local Development
+From the repository root:
 
-```bash
 # backend
 python backend/server.py
 
@@ -46,32 +31,36 @@ npm --prefix frontend run dev
 # landing
 npm --prefix landing install
 npm --prefix landing run dev
-```
-
-Optional one-command launcher:
-```bash
-./__install/start_file_organizer.sh
-```
 
 ## Test Commands
-From the repository root (`v0/`):
+From the repository root:
 
-```bash
-PYTHONPATH=. pytest -q
+python -m pytest tests
 npm --prefix frontend run test
-```
 
 ## Build
-```bash
 npm --prefix frontend run build
-```
 
-## Results / Impact
-- Reduces the risk of irreversible bulk file operations by requiring step previews and providing undo history.
-- Makes large cleanups repeatable through presets and per-step configuration instead of one-off scripts.
-- Keeps processing local-first, avoiding privacy tradeoffs of cloud-based organizers.
+## Web Demo Deployment
+The public web demo is a sandbox. It does not access visitor files.
 
-## Demo
+- Backend seed files: `backend/demo_data/seed_messy/`
+- Generated sessions: `backend/data/demo_sessions/<session_id>/`
+- Reset endpoint: `POST /api/demo/reset`
+- Frontend action: `Load Demo`
+
+Recommended deployment:
+- Render backend from `backend/` using `render.yaml`
+- Vercel frontend using `vercel.json`
+
+Required production environment:
+- Frontend: `VITE_API_BASE_URL=https://<render-service>/api`
+- Backend: `ALLOWED_ORIGINS=https://<vercel-domain>,https://files.kyawhtet.com`
+
+Do not connect the web demo to real local folders or pCloud paths.
+
+## Screenshots
+![Landing Page](docs/1.%20Landing%20Page.png)
 ![Setup Page](docs/2.%20Setup%20Page.png)
 ![Preview Page](docs/3.%20Preview%20Page.png)
 ![Summary Page](docs/4.%20Summary%20Page.png)

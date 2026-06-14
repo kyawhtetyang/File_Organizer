@@ -6,6 +6,7 @@ backend/dist/
 backend/#Input/
 backend/#Output/
 backend/a/
+backend/.conda_deps_installed
 __install/
 .DS_Store
 .env
@@ -25,4 +26,5 @@ venv/
 *.dmg
 frontend/src-tauri/target/
 frontend/src-tauri/binaries/
-
+backend/data/demo_sessions/
+.git_broken_*/

@@ -550,3 +550,4 @@ class FilenameStep(Step):
         name = re.sub(r"\s+", " ", name).strip()
         return name
 
+

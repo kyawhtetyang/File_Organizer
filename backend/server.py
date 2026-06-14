@@ -40,6 +40,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import os
 import time
+import uuid
 from fastapi import Request
 
 # Backend imports
@@ -70,16 +71,25 @@ RATE_LIMIT_WINDOW_SEC = 60
 RATE_LIMIT_MAX_REQUESTS = 120
 _rate_limit_state: Dict[str, Tuple[float, int]] = {}
 
-# Enable CORS for frontend development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+def _allowed_origins() -> List[str]:
+    defaults = [
         "https://files.kyawhtet.com",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "tauri://localhost",
-        "http://tauri.localhost"
-    ],
+        "http://tauri.localhost",
+    ]
+    extra = [
+        origin.strip()
+        for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    return defaults + extra
+
+# Enable CORS for frontend development and deployed demo frontends.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -261,6 +271,12 @@ class ScanPathResponse(BaseModel):
     exists: bool
     truncated: bool = False
     error: Optional[str] = None
+
+class DemoWorkspaceResponse(BaseModel):
+    session_id: str
+    sourceDir: str
+    targetDir: str
+    file_count: int
 
 class CreatePathRequest(BaseModel):
     path: str
@@ -485,6 +501,40 @@ def _ensure_source_dir_exists(source_dir: str) -> Optional[str]:
             return f"Could not create source directory: {str(e)}"
 
     return f"Source directory not found: {source_dir}"
+
+def _demo_seed_root() -> Path:
+    return Path(__file__).parent / "demo_data" / "seed_messy"
+
+def _demo_sessions_root() -> Path:
+    return Path(__file__).parent / "data" / "demo_sessions"
+
+def _count_demo_files(path: Path) -> int:
+    return sum(1 for p in path.rglob("*") if p.is_file() and p.name != ".DS_Store")
+
+@app.post("/api/demo/reset", response_model=DemoWorkspaceResponse)
+async def api_demo_reset():
+    seed_root = _demo_seed_root()
+    if not seed_root.exists():
+        raise HTTPException(status_code=500, detail=f"Demo seed folder missing: {seed_root}")
+
+    session_id = uuid.uuid4().hex[:12]
+    workspace_root = _demo_sessions_root() / session_id
+    source_dir = workspace_root / "source"
+    target_dir = workspace_root / "target"
+
+    try:
+        workspace_root.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(seed_root, source_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return DemoWorkspaceResponse(
+        session_id=session_id,
+        sourceDir=str(source_dir),
+        targetDir=str(target_dir),
+        file_count=_count_demo_files(source_dir),
+    )
 
 @app.post("/api/run-step", response_model=StepResponse)
 async def api_run_step(request: RunStepRequest):
@@ -724,7 +774,7 @@ if __name__ == "__main__":
     # Startup logging moved to top of file
 
 
-    PORT = 8000
+    PORT = int(os.getenv("PORT", "8000"))
     try:
         # Check if port is available before full startup to give a clean error
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -748,4 +798,3 @@ if __name__ == "__main__":
              sys.stderr.flush()
              sys.stdout.flush()
         sys.exit(1)
-

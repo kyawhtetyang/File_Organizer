@@ -57,6 +57,7 @@ export const Setup: React.FC<SetupProps> = ({
     const [homeDir, setHomeDir] = useState<string>(FALLBACK_HOME);
     const [sourceStatus, setSourceStatus] = useState<{ exists: boolean | null; error?: string }>({ exists: null });
     const [targetStatus, setTargetStatus] = useState<{ exists: boolean | null; error?: string }>({ exists: null });
+    const [demoStatus, setDemoStatus] = useState<{ loading: boolean; message?: string; error?: string }>({ loading: false });
 
     const resolvePair = (key: string, sourceDir: string, targetDir: string) => {
         if (pairOverrides[key]) {
@@ -146,6 +147,27 @@ export const Setup: React.FC<SetupProps> = ({
             setConfig(prev => ({ ...prev, targetDir }));
         } else {
             setConfig(prev => ({ ...prev, sourceDir, targetDir }));
+        }
+    };
+
+    const loadDemoWorkspace = async () => {
+        setDemoStatus({ loading: true });
+        try {
+            const demo = await pipelineApi.resetDemoWorkspace();
+            setConfig(prev => ({
+                ...prev,
+                sourceDir: demo.sourceDir,
+                targetDir: demo.targetDir,
+                isDryRun: true,
+                fileCategory: 'all',
+                processing_file_limit: Math.max(prev.processing_file_limit || 500, 500)
+            }));
+            setDemoStatus({
+                loading: false,
+                message: `Demo workspace ready: ${demo.file_count} sample files`
+            });
+        } catch (e) {
+            setDemoStatus({ loading: false, error: String(e) });
         }
     };
 
@@ -287,6 +309,29 @@ export const Setup: React.FC<SetupProps> = ({
 
                                 {/* Filtered Grid */}
                                 <div className="space-y-4">
+                                    {activeCategory === 'Manual Presets' && (
+                                        <div className="rounded-[18px] border border-[#2c2c2e] bg-[#1c1c1e] p-4 flex items-center justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-semibold text-white">Demo workspace</div>
+                                                <div className="text-xs text-[#8e8e93] mt-1">
+                                                    Uses sandbox sample files. Reset creates a fresh messy copy.
+                                                </div>
+                                                {demoStatus.message && (
+                                                    <div className="text-xs text-[#30d158] mt-2">{demoStatus.message}</div>
+                                                )}
+                                                {demoStatus.error && (
+                                                    <div className="text-xs text-[#ff453a] mt-2">{demoStatus.error}</div>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={loadDemoWorkspace}
+                                                disabled={demoStatus.loading}
+                                                className="shrink-0 px-4 py-2 rounded-full bg-white text-black text-[13px] font-semibold hover:bg-[#e5e5ea] disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {demoStatus.loading ? 'Loading...' : 'Load Demo'}
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* Quick Pair Buttons (Demo) */}
                                         {activeCategory === 'Manual Presets' && (

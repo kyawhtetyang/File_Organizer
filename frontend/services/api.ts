@@ -64,6 +64,15 @@ export const pipelineApi = {
     }
   },
 
+  async resetDemoWorkspace(): Promise<{ session_id: string; sourceDir: string; targetDir: string; file_count: number }> {
+    const response = await fetch(`${API_BASE_URL}/demo/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error('Backend failed');
+    return await response.json();
+  },
+
   async listFiles(
     path: string,
     category: string = 'all'
