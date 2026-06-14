@@ -73,6 +73,8 @@ _rate_limit_state: Dict[str, Tuple[float, int]] = {}
 
 def _allowed_origins() -> List[str]:
     defaults = [
+        "https://demofiles.kyawhtet.com",
+        "https://file-organizer-demo.vercel.app",
         "https://files.kyawhtet.com",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
