@@ -28,3 +28,4 @@ frontend/src-tauri/target/
 frontend/src-tauri/binaries/
 backend/data/demo_sessions/
 .git_broken_*/
+.vercel
